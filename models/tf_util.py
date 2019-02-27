@@ -15,6 +15,7 @@ def _variable_on_cpu(name, shape, initializer, use_fp16=False):
     initializer: initializer for Variable
   Returns:
     Variable Tensor
+    张量
   """
   with tf.device("/cpu:0"):
     dtype = tf.float16 if use_fp16 else tf.float32
