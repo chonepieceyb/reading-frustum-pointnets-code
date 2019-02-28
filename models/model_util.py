@@ -11,12 +11,13 @@ import tf_util
 # -----------------
 
 NUM_HEADING_BIN = 12
-NUM_SIZE_CLUSTER = 8 # one cluster for each type
+NUM_SIZE_CLUSTER = 8 # one cluster for each type 每种类型一个集群
 NUM_OBJECT_POINT = 512
 g_type2class={'Car':0, 'Van':1, 'Truck':2, 'Pedestrian':3,
               'Person_sitting':4, 'Cyclist':5, 'Tram':6, 'Misc':7}
-g_class2type = {g_type2class[t]:t for t in g_type2class}
+g_class2type = {g_type2class[t]:t for t in g_type2class}#与上面相反
 g_type2onehotclass = {'Car': 0, 'Pedestrian': 1, 'Cyclist': 2}
+#np.array,存储单一数据类型的多维数组,避免浪费内存和CPU。
 g_type_mean_size = {'Car': np.array([3.88311640418,1.62856739989,1.52563191462]),
                     'Van': np.array([5.06763659,1.9007158,2.20532825]),
                     'Truck': np.array([10.13586957,2.58549199,3.2520595]),
@@ -26,8 +27,10 @@ g_type_mean_size = {'Car': np.array([3.88311640418,1.62856739989,1.52563191462])
                     'Tram': np.array([16.17150617,2.53246914,3.53079012]),
                     'Misc': np.array([3.64300781,1.54298177,1.92320313])}
 g_mean_size_arr = np.zeros((NUM_SIZE_CLUSTER, 3)) # size clustrs
+#array([[ 0.,  0.,  0.],[ 0.,  0.,  0.],[ 0.,  0.,  0.],[ 0.,  0.,  0.],[ 0.,  0.,  0.],[ 0.,  0.,  0.],[ 0.,  0.,  0.],[ 0.,  0.,  0.]])
 for i in range(NUM_SIZE_CLUSTER):
     g_mean_size_arr[i,:] = g_type_mean_size[g_class2type[i]]
+    #copy
 
 # -----------------
 # TF Functions Helpers
@@ -45,24 +48,48 @@ def tf_gather_object_pc(point_cloud, mask, npoints=512):
     '''
     def mask_to_indices(mask):
         indices = np.zeros((mask.shape[0], npoints, 2), dtype=np.int32)
+        #ZEROS mask.shape[0]个矩阵中含npoints个含2个dtype类型元素的列表
         for i in range(mask.shape[0]):
             pos_indices = np.where(mask[i,:]>0.5)[0]
+            """
+            numpy.where(condition[, x, y])
+            1、这里x,y是可选参数，condition是条件，这三个输入参数都是array_like的形式；而且三者的维度相同
+
+            2、当conditon的某个位置的为true时，输出x的对应位置的元素，否则选择y对应位置的元素；
+
+            3、如果只有参数condition，则函数返回为true的元素的坐标位置信息；
+            """
             # skip cases when pos_indices is empty
             if len(pos_indices) > 0: 
                 if len(pos_indices) > npoints:
                     choice = np.random.choice(len(pos_indices),
                         npoints, replace=False)
+                    #产生一个标准分布、size为 npoints、没有重复替换的随机采样
                 else:
                     choice = np.random.choice(len(pos_indices),
                         npoints-len(pos_indices), replace=True)
+                    #产生一个标准分布、size为 npoints-len(pos_indices)的随机采样
                     choice = np.concatenate((np.arange(len(pos_indices)), choice))
+                    #arange和range类似，但可以以小数为步长，此处为0~len()-1
+                    #concatenate (默认是 axis = 0)  即将两个元组的元素合成一个元组的元素
                 np.random.shuffle(choice)
+                #打乱顺序
                 indices[i,:,1] = pos_indices[choice]
             indices[i,:,0] = i
         return indices
 
     indices = tf.py_func(mask_to_indices, [mask], tf.int32)  
+    """
+    该函数重构一个python函数，并将其作为一个TensorFlow的op使用。 
+    给定一个输入和输出都是numpy数组的python函数’func’，py_func函数将func重构进TensorFlow的计算图中。
+    def py_func(func, inp, Tout, stateful=True, name=None)
+    func:
+    一个python函数，它将一个Numpy数组组成的list作为输入，该list中的元素的数据类型和inp参数中的tf.Tensor对象的数据类型相对应，
+    同时该函数返回一个Numpy数组组成的list或者单一的Numpy数组，其数据类型和参数Tout中的值相对应。
+    即上面定义的函数，元素是[mask]
+    """
     object_pc = tf.gather_nd(point_cloud, indices)
+    #根据indices描述的索引，提取point_cloud上的元素， 重新构建一个tensor
     return object_pc, indices
 
 
@@ -70,26 +97,54 @@ def get_box3d_corners_helper(centers, headings, sizes):
     """ TF layer. Input: (N,3), (N,), (N,3), Output: (N,8,3) """
     #print '-----', centers
     N = centers.get_shape()[0].value
+    #tf.slice(inputs,begin,size,name='') begin抽取的开始位置 size抽取个数[x,y]:从begin处开始，第一维选x个，再在这x中的第二维选y个
     l = tf.slice(sizes, [0,0], [-1,1]) # (N,1)
     w = tf.slice(sizes, [0,1], [-1,1]) # (N,1)
     h = tf.slice(sizes, [0,2], [-1,1]) # (N,1)
-    #print l,w,h
-    x_corners = tf.concat([l/2,l/2,-l/2,-l/2,l/2,l/2,-l/2,-l/2], axis=1) # (N,8)
+    #print l,w,h    (N,1):三个应该均为[[a1][a2][a3]...]
+
+    #axis=0,1分别表示在第0,1个维度拼接，-1表示最高维度，跟前面np.concatenate类似
+    """例：
+    t1 = [[1, 2, 3], [4, 5, 6]]
+    t2 = [[7, 8, 9], [10, 11, 12]]
+    tf.concat([t1, t2], 0)  # [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
+    tf.concat([t1, t2], 1)  # [[1, 2, 3, 7, 8, 9], [4, 5, 6, 10, 11, 12]]
+    """
+    x_corners = tf.concat([l/2,l/2,-l/2,-l/2,l/2,l/2,-l/2,-l/2], axis=1) # (N,8)  l/2?
     y_corners = tf.concat([h/2,h/2,h/2,h/2,-h/2,-h/2,-h/2,-h/2], axis=1) # (N,8)
     z_corners = tf.concat([w/2,-w/2,-w/2,w/2,w/2,-w/2,-w/2,w/2], axis=1) # (N,8)
+
+    #tf.expand_dims(input,axis[,,])在input的axis处增加一个维度   input a tensor of shape[1,2,3,4] axis=2 变为[1,2,1,3,4]
+    #以下操作为给x_coeners三项增加一个维度再合并 所以(N,8)变为(N,3,8)
     corners = tf.concat([tf.expand_dims(x_corners,1), tf.expand_dims(y_corners,1), tf.expand_dims(z_corners,1)], axis=1) # (N,3,8)
     #print x_corners, y_corners, z_corners
     c = tf.cos(headings)
     s = tf.sin(headings)
+    #ones(shape, dtype=tf.float32) 这个操作会返回一个类型为dtype，并且维度为shape的tensor，并且所有的参数均为1
     ones = tf.ones([N], dtype=tf.float32)
+    #zeors这个操作会返回一个类型为dtype，并且维度为shape的tensor，并且所有的参数均为0
     zeros = tf.zeros([N], dtype=tf.float32)
+
+    #stack()矩阵拼接的函数，在axis维上拼接 与concat不同
+    #tf.concat拼接的是除了拼接维度axis外其他维度的shape完全相同的张量，并且产生的张量的阶数不会发生变化
+    #而tf.stack则会在新的张量阶上拼接，产生的张量的阶数将会增加
+    """例：
+    t1 = [[1, 2, 3], [4, 5, 6]]   (2,3)
+    t2 = [[7, 8, 9], [10, 11, 12]]    (2,3)
+    tf.stack([t1, t2], 0)  # [[[1, 2, 3], [4, 5, 6]], [[7, 8, 9], [10, 11, 12]]]  (2,2,3)
+    tf.stack([t1, t2], 1)  # [[[1, 2, 3], [7, 8, 9]], [[4, 5, 6], [10, 11, 12]]]  (2,2,3)
+    tf.stack([t1, t2], 2)  # [[[1,7], [2,8], [3, 9]], [[4,10], [5,11], [6.12]]]  (2,3,2)
+    """
     row1 = tf.stack([c,zeros,s], axis=1) # (N,3)
     row2 = tf.stack([zeros,ones,zeros], axis=1)
     row3 = tf.stack([-s,zeros,c], axis=1)
-    R = tf.concat([tf.expand_dims(row1,1), tf.expand_dims(row2,1), tf.expand_dims(row3,1)], axis=1) # (N,3,3)
+    R = tf.concat([tf.expand_dims(row1,1), tf.expand_dims(row2,1), tf.expand_dims(row3,1)], axis=1) #(N,3)->(N,1,3)->(N,3,3)
     #print row1, row2, row3, R, N
+    #tf.matmul矩阵相乘。怎么运算、
     corners_3d = tf.matmul(R, corners) # (N,3,8)
-    corners_3d += tf.tile(tf.expand_dims(centers,2), [1,1,8]) # (N,3,8)
+    #tile(input,multiples) 用于在同一维度上的复制 multiples[1,1,8]  三个维度分别变为1,1,8倍
+    corners_3d += tf.tile(tf.expand_dims(centers,2), [1,1,8]) #(N,3)->(N,3,1)->(N,3,8)
+    #从[0,1,2]变为[0,2,1](若是二维，即转置)
     corners_3d = tf.transpose(corners_3d, perm=[0,2,1]) # (N,8,3)
     return corners_3d
 
@@ -97,22 +152,29 @@ def get_box3d_corners(center, heading_residuals, size_residuals):
     """ TF layer.
     Inputs:
         center: (B,3)
-        heading_residuals: (B,NH)
+        heading_residuals: (B,NH)              
         size_residuals: (B,NS,3)
     Outputs:
-        box3d_corners: (B,NH,NS,8,3) tensor
+        box3d_corners: (B,NH,NS,8,3) tensor                NH NS 为开头定义的常量NUM_HEADING_BIN = 12 NUM_SIZE_CLUSTER = 8缩写
     """
-    batch_size = center.get_shape()[0].value
+    batch_size = center.get_shape()[0].value #B的值
     heading_bin_centers = tf.constant(np.arange(0,2*np.pi,2*np.pi/NUM_HEADING_BIN), dtype=tf.float32) # (NH,)
+    """
+    tf.constant(value,dtype=None,shape=None,name=’Const’) 
+    创建一个常量tensor，按照给出value来赋值，可以用shape来指定其形状。value可以是一个数，也可以是一个list。 
+    如果是一个数，那么这个常亮中所有值的按该数来赋值。 
+    如果是list,那么len(value)一定要小于等于shape展开后的长度。赋值时，先将value中的值逐个存入。不够的部分，则全部存入value的最后一个值。
+    """    
     headings = heading_residuals + tf.expand_dims(heading_bin_centers, 0) # (B,NH)
     
-    mean_sizes = tf.expand_dims(tf.constant(g_mean_size_arr, dtype=tf.float32), 0) + size_residuals # (B,NS,1)
+    mean_sizes = tf.expand_dims(tf.constant(g_mean_size_arr, dtype=tf.float32), 0) + size_residuals # 为啥是(B,NS,1)？？？
     sizes = mean_sizes + size_residuals # (B,NS,3)
     sizes = tf.tile(tf.expand_dims(sizes,1), [1,NUM_HEADING_BIN,1,1]) # (B,NH,NS,3)
     headings = tf.tile(tf.expand_dims(headings,-1), [1,1,NUM_SIZE_CLUSTER]) # (B,NH,NS)
     centers = tf.tile(tf.expand_dims(tf.expand_dims(center,1),1), [1,NUM_HEADING_BIN, NUM_SIZE_CLUSTER,1]) # (B,NH,NS,3)
 
     N = batch_size*NUM_HEADING_BIN*NUM_SIZE_CLUSTER
+    #tf.reshape(tensor, shape, name=None)  函数的作用是将tensor变换为参数shape的形式。
     corners_3d = get_box3d_corners_helper(tf.reshape(centers, [N,3]), tf.reshape(headings, [N]), tf.reshape(sizes, [N,3]))
 
     return tf.reshape(corners_3d, [batch_size, NUM_HEADING_BIN, NUM_SIZE_CLUSTER, 8, 3])
@@ -127,7 +189,7 @@ def huber_loss(error, delta):
 
 
 def parse_output_to_tensors(output, end_points):
-    ''' Parse batch output to separate tensors (added to end_points)
+    ''' Parse batch output to separate tensors (added to end_points)将批量输出解析为单独的张量（添加到end_points）
     Input:
         output: TF tensor in shape (B,3+2*NUM_HEADING_BIN+4*NUM_SIZE_CLUSTER)
         end_points: dict
@@ -135,12 +197,12 @@ def parse_output_to_tensors(output, end_points):
         end_points: dict (updated)
     '''
     batch_size = output.get_shape()[0].value
-    center = tf.slice(output, [0,0], [-1,3])
+    center = tf.slice(output, [0,0], [-1,3])#(B,3)
     end_points['center_boxnet'] = center
 
-    heading_scores = tf.slice(output, [0,3], [-1,NUM_HEADING_BIN])
+    heading_scores = tf.slice(output, [0,3], [-1,NUM_HEADING_BIN])#(B,NUM_HEADING_BIN)
     heading_residuals_normalized = tf.slice(output, [0,3+NUM_HEADING_BIN],
-        [-1,NUM_HEADING_BIN])
+        [-1,NUM_HEADING_BIN])#(B,NUM_HEADING_BIN)
     end_points['heading_scores'] = heading_scores # BxNUM_HEADING_BIN
     end_points['heading_residuals_normalized'] = \
         heading_residuals_normalized # BxNUM_HEADING_BIN (-1 to 1)
@@ -148,15 +210,16 @@ def parse_output_to_tensors(output, end_points):
         heading_residuals_normalized * (np.pi/NUM_HEADING_BIN) # BxNUM_HEADING_BIN
     
     size_scores = tf.slice(output, [0,3+NUM_HEADING_BIN*2],
-        [-1,NUM_SIZE_CLUSTER]) # BxNUM_SIZE_CLUSTER
+        [-1,NUM_SIZE_CLUSTER]) # BxNUM_SIZE_CLUSTER  (B,NUM_SIZE_CLUSTER)
     size_residuals_normalized = tf.slice(output,
         [0,3+NUM_HEADING_BIN*2+NUM_SIZE_CLUSTER], [-1,NUM_SIZE_CLUSTER*3])
     size_residuals_normalized = tf.reshape(size_residuals_normalized,
-        [batch_size, NUM_SIZE_CLUSTER, 3]) # BxNUM_SIZE_CLUSTERx3
+        [batch_size, NUM_SIZE_CLUSTER, 3]) # BxNUM_SIZE_CLUSTERx3 (B,NUM_SIZE_CLUSTER,3)
     end_points['size_scores'] = size_scores
     end_points['size_residuals_normalized'] = size_residuals_normalized
     end_points['size_residuals'] = size_residuals_normalized * \
         tf.expand_dims(tf.constant(g_mean_size_arr, dtype=tf.float32), 0)
+        #tf.expand_dims(tf.constant(g_mean_size_arr, dtype=tf.float32), 0) (1,NUM_SIZE_CLUSTER,3)
 
     return end_points
 
@@ -172,6 +235,7 @@ def placeholder_inputs(batch_size, num_point):
     Output:
         TF placeholders for inputs and ground truths
     '''
+    #tf.placeholder 此函数可以理解为形参，用于定义过程，在执行的时候再赋具体的值
     pointclouds_pl = tf.placeholder(tf.float32,
         shape=(batch_size, num_point, 4))
     one_hot_vec_pl = tf.placeholder(tf.float32, shape=(batch_size, 3))
@@ -204,23 +268,37 @@ def point_cloud_masking(point_cloud, logits, end_points, xyz_only=True):
             M = NUM_OBJECT_POINT as a hyper-parameter
         mask_xyz_mean: TF tensor in shape (B,3)
     '''
-    batch_size = point_cloud.get_shape()[0].value
-    num_point = point_cloud.get_shape()[1].value
+    batch_size = point_cloud.get_shape()[0].value#B.
+    num_point = point_cloud.get_shape()[1].value#N
     mask = tf.slice(logits,[0,0,0],[-1,-1,1]) < \
-        tf.slice(logits,[0,0,1],[-1,-1,1])
+        tf.slice(logits,[0,0,1],[-1,-1,1])             #？？
     mask = tf.to_float(mask) # BxNx1
     mask_count = tf.tile(tf.reduce_sum(mask,axis=1,keep_dims=True),
-        [1,1,3]) # Bx1x3
+        [1,1,3]) #(BxNx1->Bx1x1->)Bx1x3
+     """
+    reduce_sum(
+    input_tensor,表示输入 
+    axis=None,表示在那个维度进行sum操作。
+    keep_dims=False,表示是否保留原始数据的维度，False相当于执行完后原始数据就会少一个维度
+    name=None,
+    reduction_indices=None
+    input_tensor:为了跟旧版本的兼容，现在已经不使用了。 
+    """
     point_cloud_xyz = tf.slice(point_cloud, [0,0,0], [-1,-1,3]) # BxNx3
     mask_xyz_mean = tf.reduce_sum(tf.tile(mask, [1,1,3])*point_cloud_xyz,
-        axis=1, keep_dims=True) # Bx1x3
+        axis=1, keep_dims=True) #(xNx1->BxNx3*BxNx3->)Bx1x3
     mask = tf.squeeze(mask, axis=[2]) # BxN
+    """
+    tf.squeeze(input, squeeze_dims=None, name=None)
+    从tensor中删除所有大小是1的维度
+    squeeze_dims控制删除的范围
+    """
     end_points['mask'] = mask
     mask_xyz_mean = mask_xyz_mean/tf.maximum(mask_count,1) # Bx1x3
 
     # Translate to masked points' centroid
     point_cloud_xyz_stage1 = point_cloud_xyz - \
-        tf.tile(mask_xyz_mean, [1,num_point,1])
+        tf.tile(mask_xyz_mean, [1,num_point,1])#BxNx3
 
     if xyz_only:
         point_cloud_stage1 = point_cloud_xyz_stage1
@@ -232,6 +310,8 @@ def point_cloud_masking(point_cloud, logits, end_points, xyz_only=True):
 
     object_point_cloud, _ = tf_gather_object_pc(point_cloud_stage1,
         mask, NUM_OBJECT_POINT)
+    # set_shape()和reshape()的区别
+    # 前者用于更新图中某个tensor的shape，而后者则往往用于动态地创建一个新的tensor
     object_point_cloud.set_shape([batch_size, NUM_OBJECT_POINT, num_channels])
 
     return object_point_cloud, tf.squeeze(mask_xyz_mean, axis=1), end_points
@@ -248,8 +328,8 @@ def get_center_regression_net(object_point_cloud, one_hot_vec,
     Output:
         predicted_center: TF tensor in shape (B,3)
     ''' 
-    num_point = object_point_cloud.get_shape()[1].value
-    net = tf.expand_dims(object_point_cloud, 2)
+    num_point = object_point_cloud.get_shape()[1].value#M
+    net = tf.expand_dims(object_point_cloud, 2)#(B,M,1,C)
     net = tf_util.conv2d(net, 128, [1,1],
                          padding='VALID', stride=[1,1],
                          bn=True, is_training=is_training,
@@ -297,6 +377,7 @@ def get_loss(mask_label, center_label, \
             the total_loss is also added to the losses collection
     '''
     # 3D Segmentation loss
+    #tf.reduce_mean(input_tensor, reduction_indices=None)求平均值，若reduction_indices有值则在这个维度求均值
     mask_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(\
         logits=end_points['mask_logits'], labels=mask_label))
     tf.summary.scalar('3d mask loss', mask_loss)
