@@ -124,3 +124,7 @@ Our code is released under the Apache 2.0 license (see LICENSE file for details)
 
 - Add a demo script to run inference of Frustum PointNets based on raw input data.
 - Add related scripts for SUNRGBD dataset
+
+-添加一个演示脚本，以基于原始输入数据运行Frustum切入点的推断
+-为SUNRGBD数据集添加相关脚本
+
