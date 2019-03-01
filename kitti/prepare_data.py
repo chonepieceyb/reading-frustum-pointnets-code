@@ -22,7 +22,7 @@ import kitti_util as utils      #kitti_util 自己定义的，里面装着很多
 import cPickle as pickle   #CPickle是 python2的库 python3中是pikle，在跑程序的时候数据处理完毕，会在 kitti文件夹生成3个.pikle文件,
                            #pikkle是一个数据储存的模块,在机器学习中常常需要把训练好的模型储存起来，pikle 就能起到这个作用z` -Y
 from kitti_object import *   #kitti_object是作者自己定义的，把整个数据集看成一个对象，kitti_object里面有数据规模的参数，还有很多读取文本照片的操作 -Y
-import argparse        # argparse 是python自带的命令行参数解析包，可以用来方便地读取命令行参数。它的使用也比较简单。 -Y
+import argparse        # argparse 是python自带的命令行参数解析包，可以用来方便地读取命令行参数。它的使用也比较简单。 -Yang
 
 '''
   Scipy是一个用于数学、科学、工程领域的常用软件包，可以处理插值、积分、优化、图像处理、常微分方程数值解的求解、信号处理等问题。它用于有效计算Numpy矩阵，使Numpy和Scipy协同工作，高效解决问题。
