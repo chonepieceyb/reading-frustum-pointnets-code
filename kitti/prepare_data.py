@@ -3,36 +3,55 @@
 Author: Charles R. Qi
 Date: September 2017
 '''
+'''
+跑完代码之后，的主要作用就是对kitti的数据机型预处理，其中在这个文件所在的文件夹中的kitti_object将数据都定义成了一个类
+而一些操作放在了 kitti_util里了，比如一些旋转等操作 -Y
+'''
 from __future__ import print_function
 
 import os
 import sys
-import numpy as np
-import cv2
-from PIL import Image
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(BASE_DIR)
-sys.path.append(BASE_DIR)
-sys.path.append(os.path.join(ROOT_DIR, 'mayavi'))
-import kitti_util as utils
-import cPickle as pickle
-from kitti_object import *
-import argparse
+import numpy as np   #numpy是python的一个扩展的开源计算库，有很多使用的计算，比如矩阵乘法，需要好好研究一下 -Y
+import cv2           #cv2是opencv -Y
+from PIL import Image  #PIL：Python Imaging Library，已经是Python平台事实上的图像处理标准库了，但是PIL主要是在python2中的，python3可能不兼容，关于PIL可以看看廖雪峰的python2教程，在python3中用Pillow代替，是一个图像处理库-Y
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))    #os.path.abspath(__file__)获取当前脚本的路径就是prepare_data.py的路径(包含.py)，而os.path.dirname()是获取父目录（路径里应该不包含.py这个文件）-Y
+ROOT_DIR = os.path.dirname(BASE_DIR)      #获取根目录，这里应该是指到 /frustum-pointnets 这一级，也就是项目的根目录-Y
+sys.path.append(BASE_DIR) #sys.path返回的是一个列表，加上append方法就是把BASE_DIR加到这个列表中  对于模块和自己写的脚本不在同一个目录下，常在脚本开头加sys.path.append('xxx')：，只在运行时生效-Y
+sys.path.append(os.path.join(ROOT_DIR, 'mayavi')) #os.path.join python的路径拼接函数，注意，这个路径拼接稍微有些复杂，要用的时候再看看 -Y
+import kitti_util as utils      #kitti_util 自己定义的，里面装着很多操作 -Y
+import cPickle as pickle   #CPickle是 python2的库 python3中是pikle，在跑程序的时候数据处理完毕，会在 kitti文件夹生成3个.pikle文件,
+                           #pikkle是一个数据储存的模块,在机器学习中常常需要把训练好的模型储存起来，pikle 就能起到这个作用z` -Y
+from kitti_object import *   #kitti_object是作者自己定义的，把整个数据集看成一个对象，kitti_object里面有数据规模的参数，还有很多读取文本照片的操作 -Y
+import argparse        # argparse 是python自带的命令行参数解析包，可以用来方便地读取命令行参数。它的使用也比较简单。 -Y
 
-
+'''
+  Scipy是一个用于数学、科学、工程领域的常用软件包，可以处理插值、积分、优化、图像处理、常微分方程数值解的求解、信号处理等问题。它用于有效计算Numpy矩阵，使Numpy和Scipy协同工作，高效解决问题。
+  Scipy是由针对特定任务的子模块组成,scripy.spatial就是其中一个子模块,应用领域是空间数据结构极其算法,可以参考https://www.jianshu.com/p/6c742912047f -Y
+'''
 def in_hull(p, hull):
-    from scipy.spatial import Delaunay
-    if not isinstance(hull,Delaunay):
+    from scipy.spatial import Delaunay    #Delaunay 三角剖分算法，对数值分析（比如有限元分析）以及图形学来说，都是极为重要的一项预处理技术。
+    if not isinstance(hull,Delaunay):     #具体碰到的时候再查吧  -Y
         hull = Delaunay(hull)
-    return hull.find_simplex(p)>=0
+    return hull.find_simplex(p)>=0  
+    '''
+     hull.find_simplex(p)
+     作用 Find the simplices containing the given points.
+    官方文档https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.spatial.Delaunay.find_simplex.html -Y
+    '''
 
-def extract_pc_in_box3d(pc, box3d):
+def extract_pc_in_box3d(pc, box3d):   #暂时看不懂，用来框出一个3D盒子？ -Y
     ''' pc: (N,3), box3d: (8,3) '''
     box3d_roi_inds = in_hull(pc[:,0:3], box3d)
     return pc[box3d_roi_inds,:], box3d_roi_inds
 
-def extract_pc_in_box2d(pc, box2d):
+def extract_pc_in_box2d(pc, box2d):        #暂时看不懂，用来框出一个2D盒子？ -Y
     ''' pc: (N,2), box2d: (xmin,ymin,xmax,ymax) '''
+
+    '''
+    np.zeros:zeros(shape, dtype=float, order='C')返回：返回来一个给定形状和类型的用0填充的数组；参数：shape:形状 dtype:数据类型，可选参数，默认numpy.float64  -Y
+    这里的作用是返回一个（应该） 4行2列的矩阵，元素全是0
+    https://blog.csdn.net/qq_36621927/article/details/79763585
+    '''
     box2d_corners = np.zeros((4,2))
     box2d_corners[0,:] = [box2d[0],box2d[1]] 
     box2d_corners[1,:] = [box2d[2],box2d[1]] 
@@ -41,7 +60,7 @@ def extract_pc_in_box2d(pc, box2d):
     box2d_roi_inds = in_hull(pc[:,0:2], box2d_corners)
     return pc[box2d_roi_inds,:], box2d_roi_inds
      
-def demo():
+def demo():        # 跑了代码之后，这是一个完整描述，这个网络的数据预处理过程的代码，先跳过了 -Y
     import mayavi.mlab as mlab
     from viz_util import draw_lidar, draw_lidar_simple, draw_gt_boxes3d
     dataset = kitti_object(os.path.join(ROOT_DIR, 'dataset/KITTI/object'))
