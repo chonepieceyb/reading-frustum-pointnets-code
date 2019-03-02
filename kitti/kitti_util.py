@@ -17,9 +17,9 @@ class Object3d(object):
 
         # extract label, truncation, occlusion
         self.type = data[0] # 'Car', 'Pedestrian', ...
-        self.truncation = data[1] # truncated pixel ratio [0..1]
-        self.occlusion = int(data[2]) # 0=visible, 1=partly occluded, 2=fully occluded, 3=unknown
-        self.alpha = data[3] # object observation angle [-pi..pi]
+        self.truncation = data[1] # truncated pixel ratio [0..1]  截断程度 h
+        self.occlusion = int(data[2]) # 0=visible, 1=partly occluded, 2=fully occluded, 3=unknown 被遮挡程度 h
+        self.alpha = data[3] # object observation angle [-pi..pi] 观察角度 h
 
         # extract 2d bounding box in 0-based coordinates
         self.xmin = data[4] # left
@@ -33,7 +33,7 @@ class Object3d(object):
         self.w = data[9] # box width
         self.l = data[10] # box length (in meters)
         self.t = (data[11],data[12],data[13]) # location (x,y,z) in camera coord.
-        self.ry = data[14] # yaw angle (around Y-axis in camera coordinates) [-pi..pi]
+        self.ry = data[14] # rotation_y yaw angle (around Y-axis in camera coordinates) [-pi..pi]  
 
     def print_object(self):
         print('Type, truncation, occlusion, alpha: %s, %d, %d, %f' % \
@@ -47,7 +47,7 @@ class Object3d(object):
 
 
 class Calibration(object):
-    ''' Calibration matrices and utils
+    ''' Calibration matrices and utils  校准矩阵和工具h
         3d XYZ in <label>.txt are in rect camera coord.
         2d box xy are in image2 coord
         Points in <lidar>.bin are in Velodyne coord.
@@ -104,16 +104,17 @@ class Calibration(object):
 
     def read_calib_file(self, filepath):
         ''' Read in a calibration file and parse into a dictionary.
+            读入校准文件并解析为字典 h
         Ref: https://github.com/utiasSTARS/pykitti/blob/master/pykitti/utils.py
         '''
         data = {}
-        with open(filepath, 'r') as f:
+        with open(filepath, 'r') as f:#只读 h
             for line in f.readlines():
-                line = line.rstrip()
+                line = line.rstrip()#删除 string 字符串末尾的指定字符（默认为空格）h
                 if len(line)==0: continue
                 key, value = line.split(':', 1)
                 # The only non-float values in these files are dates, which
-                # we don't care about anyway
+                # we don't care about anyway 
                 try:
                     data[key] = np.array([float(x) for x in value.split()])
                 except ValueError:
@@ -123,11 +124,12 @@ class Calibration(object):
     
     def read_calib_from_video(self, calib_root_dir):
         ''' Read calibration for camera 2 from video calib files.
+            从视频校准文件中读取摄像机2的校准。 h
             there are calib_cam_to_cam and calib_velo_to_cam under the calib_root_dir
         '''
         data = {}
-        cam2cam = self.read_calib_file(os.path.join(calib_root_dir, 'calib_cam_to_cam.txt'))
-        velo2cam = self.read_calib_file(os.path.join(calib_root_dir, 'calib_velo_to_cam.txt'))
+        cam2cam = self.read_calib_file(os.path.join(calib_root_dir, 'calib_cam_to_cam.txt'))#这是哪个文件。。
+        velo2cam = self.read_calib_file(os.path.join(calib_root_dir, 'calib_velo_to_cam.txt'))#这是哪个
         Tr_velo_to_cam = np.zeros((3,4))
         Tr_velo_to_cam[0:3,0:3] = np.reshape(velo2cam['R'], [3,3])
         Tr_velo_to_cam[:,3] = velo2cam['T']
@@ -142,6 +144,7 @@ class Calibration(object):
         '''
         n = pts_3d.shape[0]
         pts_3d_hom = np.hstack((pts_3d, np.ones((n,1))))
+        #它其实就是水平(按列顺序)把数组给堆叠起来，vstack()函数正好和它相反。维度不变 从nx3和nx1合成nx4 h
         return pts_3d_hom
  
     # =========================== 
@@ -149,15 +152,16 @@ class Calibration(object):
     # =========================== 
     def project_velo_to_ref(self, pts_3d_velo):
         pts_3d_velo = self.cart2hom(pts_3d_velo) # nx4
-        return np.dot(pts_3d_velo, np.transpose(self.V2C))
+        return np.dot(pts_3d_velo, np.transpose(self.V2C))#self.V2C (3,4)
 
     def project_ref_to_velo(self, pts_3d_ref):
         pts_3d_ref = self.cart2hom(pts_3d_ref) # nx4
-        return np.dot(pts_3d_ref, np.transpose(self.C2V))
+        return np.dot(pts_3d_ref, np.transpose(self.C2V))#(n,3)
 
     def project_rect_to_ref(self, pts_3d_rect):
         ''' Input and Output are nx3 points '''
         return np.transpose(np.dot(np.linalg.inv(self.R0), np.transpose(pts_3d_rect)))
+        #np.linalg.inv()：矩阵求逆      np.linalg.det()：矩阵求行列式（标量）
     
     def project_ref_to_rect(self, pts_3d_ref):
         ''' Input and Output are nx3 points '''
