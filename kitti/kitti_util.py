@@ -144,11 +144,18 @@ class Calibration(object):
         '''
         n = pts_3d.shape[0]
         pts_3d_hom = np.hstack((pts_3d, np.ones((n,1))))
-        #它其实就是水平(按列顺序)把数组给堆叠起来，vstack()函数正好和它相反。维度不变 从nx3和nx1合成nx4 h
+        """它其实就是水平(按列顺序)把数组给堆叠起来，np.concatenate(tup, axis=1)
+        vstack()函数正好和它相反，np.concatenate(tup, axis=0) if tup contains arrays thatare at least 2-dimensional.
+        concatenate((a1, a2, …), axis=0) 用于数组拼接  数组满足在拼接方向axis轴上数组间的形状一致即可 在第axis维度上进行拼接
+        如 a1(x,y,z) a2(x,y,m) a3(x,y,n) axis=2  ->(x,y,z+m+n)
+        注：[a,b,c,d] 0维，也可在维度不足时当做1,2,3...维 即[[a,b,c,d]][[[a,b,c,d]]]等
+         h
+        
+        """
         return pts_3d_hom
  
     # =========================== 
-    # ------- 3d to 3d ---------- 
+    # ------- 3d to 3d ---------- velo，ref，rect，image 四个坐标系间的转换
     # =========================== 
     def project_velo_to_ref(self, pts_3d_velo):
         pts_3d_velo = self.cart2hom(pts_3d_velo) # nx4
@@ -248,28 +255,30 @@ def rotz(t):
 
 
 def transform_from_rot_trans(R, t):
-    ''' Transforation matrix from rotation matrix and translation vector. '''
+    ''' Transforation matrix from rotation matrix and translation vector. 
+    旋转矩阵和平移向量的变换矩阵'''
     R = R.reshape(3, 3)
     t = t.reshape(3, 1)
     return np.vstack((np.hstack([R, t]), [0, 0, 0, 1]))
+    #从(3,3),(3,1)->(3,4) (1,4)->(4,4)
 
 
 def inverse_rigid_trans(Tr):
     ''' Inverse a rigid body transform matrix (3x4 as [R|t])
-        [R'|-R't; 0|1]
+        [R'|-R't; 0|1]  反转刚体变换矩阵
     '''
-    inv_Tr = np.zeros_like(Tr) # 3x4
+    inv_Tr = np.zeros_like(Tr) # 3x4 根据Tr的shape建一个相同shape但元素均为0的array
     inv_Tr[0:3,0:3] = np.transpose(Tr[0:3,0:3])
     inv_Tr[0:3,3] = np.dot(-np.transpose(Tr[0:3,0:3]), Tr[0:3,3])
     return inv_Tr
 
 def read_label(label_filename):
-    lines = [line.rstrip() for line in open(label_filename)]
-    objects = [Object3d(line) for line in lines]
+    lines = [line.rstrip() for line in open(label_filename)]#分行并去除末尾空格
+    objects = [Object3d(line) for line in lines]#文本每一行建一个对象
     return objects
 
 def load_image(img_filename):
-    return cv2.imread(img_filename)
+    return cv2.imread(img_filename)#加载图片
 
 def load_velo_scan(velo_filename):
     scan = np.fromfile(velo_filename, dtype=np.float32)
@@ -292,7 +301,7 @@ def project_to_image(pts_3d, P):
     '''
     n = pts_3d.shape[0]
     pts_3d_extend = np.hstack((pts_3d, np.ones((n,1))))
-    print(('pts_3d_extend shape: ', pts_3d_extend.shape))
+    print(('pts_3d_extend shape: ', pts_3d_extend.shape)) #(n,4)
     pts_2d = np.dot(pts_3d_extend, np.transpose(P)) # nx3
     pts_2d[:,0] /= pts_2d[:,2]
     pts_2d[:,1] /= pts_2d[:,2]
