@@ -6,6 +6,8 @@ Date: September 2017
 '''
 跑完代码之后，的主要作用就是对kitti的数据机型预处理，其中在这个文件所在的文件夹中的kitti_object将数据都定义成了一个类
 而一些操作放在了 kitti_util里了，比如一些旋转等操作 -Y
+
+numpy的官方文档 https://docs.scipy.org/doc/numpy/reference/index.html
 '''
 from __future__ import print_function
 
@@ -30,21 +32,41 @@ import argparse        # argparse 是python自带的命令行参数解析包，�
 '''
 def in_hull(p, hull):
     from scipy.spatial import Delaunay    #Delaunay 三角剖分算法，对数值分析（比如有限元分析）以及图形学来说，都是极为重要的一项预处理技术。
-    if not isinstance(hull,Delaunay):     #具体碰到的时候再查吧  -Y
+    if not isinstance(hull,Delaunay):     
         hull = Delaunay(hull)
     return hull.find_simplex(p)>=0  
     '''
      hull.find_simplex(p)
      作用 Find the simplices containing the given points.
     官方文档https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.spatial.Delaunay.find_simplex.html -Y
+    
+    经过翻阅官方文档的例子这段代码的意思是：
+    1 如果 hull 不是一个Delaunay三角剖分网络（关于什么是Delaunay查百度百科）那么就通过点组hull(这里的hull应该是一个点组
+    eg:((1,2),(3,4),(5,6))  )构建一个Delaunay三角剖分网络 ，这时候 hull是一个网络了
+    2return 语句的含义，判断 点集p是否在这个三角剖分网中的一个三角形里 ，p应该是一个 numpy.array的数据结构，返回的也是一个numpy.array的数据结构 ，eg array([ True,  True,  True])
+     说明： Delaunay.simplexs()方法 返回的形式类似于
+     >>> tri.simplices
+         array([[2, 3, 0],                 # may vary
+         [3, 1, 0]], dtype=int32)
+         其中 [2,3,0]表示 三角形的点 分别是点组中的第 2，3，0个点 （从0开始算）
+     而     Delaunay.find_simplex(p),就返回一个 1维数组，数组中的数 表示 p(p是点组或者一个点)中对应的点，在 trimplices中的第几个三角形中
+    如果没有就返回 -1
+    
+    总结：这个函数的作用就是判断，点集p中的点哪些在Delaunay三角剖分网中，哪些不在返回一类似于[true,false,true] 的东西-Y
+    详情见 https://docs.scipy.org/doc/scipy-0.19.0/reference/generated/scipy.spatial.Delaunay.html
+
     '''
 
-def extract_pc_in_box3d(pc, box3d):   #暂时看不懂，用来框出一个3D盒子？ -Y
+def extract_pc_in_box3d(pc, box3d):   #,作用应该是返回pc中，包含在有box3d经过变换构成的Delaunay三角剖分网中的点 -Y -Y
     ''' pc: (N,3), box3d: (8,3) '''
     box3d_roi_inds = in_hull(pc[:,0:3], box3d)
-    return pc[box3d_roi_inds,:], box3d_roi_inds
+    '''
+    由上面的分析可知box3d_roi_inds是一个有bool值构成的数组，所以对于下面的pc[box3d_roi_inds,:]操作的解释，就是采用掩模+切片取值，具体的解释参见
+    https://blog.csdn.net/liujian20150808/article/details/81273289   -Y
+    '''
+    return pc[box3d_roi_inds,:], box3d_roi_inds   #box3d_roi_inds是一个有bool值构成的array
 
-def extract_pc_in_box2d(pc, box2d):        #暂时看不懂，用来框出一个2D盒子？ -Y
+def extract_pc_in_box2d(pc, box2d):        #作用应该是返回pc中，包含在有box2d经过变换构成的Delaunay三角剖分网中的点 -Y
     ''' pc: (N,2), box2d: (xmin,ymin,xmax,ymax) '''
 
     '''
@@ -52,13 +74,13 @@ def extract_pc_in_box2d(pc, box2d):        #暂时看不懂，用来框出一个
     这里的作用是返回一个（应该） 4行2列的矩阵，元素全是0
     https://blog.csdn.net/qq_36621927/article/details/79763585
     '''
-    box2d_corners = np.zeros((4,2))
+    box2d_corners = np.zeros((4,2))           
     box2d_corners[0,:] = [box2d[0],box2d[1]] 
     box2d_corners[1,:] = [box2d[2],box2d[1]] 
     box2d_corners[2,:] = [box2d[2],box2d[3]] 
     box2d_corners[3,:] = [box2d[0],box2d[3]] 
     box2d_roi_inds = in_hull(pc[:,0:2], box2d_corners)
-    return pc[box2d_roi_inds,:], box2d_roi_inds
+    return pc[box2d_roi_inds,:], box2d_roi_inds        #box2d_roi_inds是一个有bool值构成的array
      
 def demo():        # 跑了代码之后，这是一个完整描述，这个网络的数据预处理过程的代码，先跳过了 -Y
     import mayavi.mlab as mlab
@@ -148,20 +170,23 @@ def demo():        # 跑了代码之后，这是一个完整描述，这个网�
     mlab.show(1)
     raw_input()
 
-def random_shift_box2d(box2d, shift_ratio=0.1):
-    ''' Randomly shift box center, randomly scale width and height 
+def random_shift_box2d(box2d, shift_ratio=0.1):      
+    ''' Randomly shift box center, randomly scale width and height    
     '''
-    r = shift_ratio
-    xmin,ymin,xmax,ymax = box2d
+    #随意地改变box的中心，任意地缩放宽度和高度
+    r = shift_ratio               #  r 应该是控制随机变换的范围，即 shift_ratio -Y
+    xmin,ymin,xmax,ymax = box2d   #应该是2D图像框的 4个角的坐标     -Y                                                                                                              
     h = ymax-ymin
     w = xmax-xmin
     cx = (xmin+xmax)/2.0
     cy = (ymin+ymax)/2.0
-    cx2 = cx + w*r*(np.random.random()*2-1)
-    cy2 = cy + h*r*(np.random.random()*2-1)
-    h2 = h*(1+np.random.random()*2*r-r) # 0.9 to 1.1
-    w2 = w*(1+np.random.random()*2*r-r) # 0.9 to 1.1
+    cx2 = cx + w*r*(np.random.random()*2-1)     #np.random.random()：Return random floats in the half-open interval [0.0, 1.0). 有一个参数size,如果size=(2,3)就生成一个 2*3 的随机矩阵关于numpy库的随机函数详见 https://blog.csdn.net/kancy110/article/details/69665164 -Y
+    cy2 = cy + h*r*(np.random.random()*2-1)    
+    h2 = h*(1+np.random.random()*2*r-r) # 0.9 to 1.1  #这里的0.9大盘1.1是h乘的系数    
+    w2 = w*(1+np.random.random()*2*r-r) # 0.9 to 1.1 
+    #经过上面的操作，就由原来的box2d产生了一个随机的宽高经过变化的，中心改变的一个心得box,改变的程度由 shift_ratio决定 -Y
     return np.array([cx2-w2/2.0, cy2-h2/2.0, cx2+w2/2.0, cy2+h2/2.0])
+    #np.array()是 array是 numpy的基本的数据结构之一,这里返回了一个一维数组, 详情见官方文档  https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html?highlight=array#numpy.array -Y
  
 def extract_frustum_data(idx_filename, split, output_filename, viz=False,
                        perturb_box2d=False, augmentX=1, type_whitelist=['Car']):
