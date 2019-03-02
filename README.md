@@ -1,3 +1,6 @@
+The code comes from: https://github.com/charlesq34/frustum-pointnets
+we establish this to read the code more conveniently
+
 小组用来阅读和研究frustum-pointnets代码的仓库。
 在阅读代码的同时请在旁边写上注释，并且在每一句注释之后加上 +姓的首字母，以便区分
 ---------------------
