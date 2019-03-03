@@ -190,9 +190,9 @@ def random_shift_box2d(box2d, shift_ratio=0.1):
  
 def extract_frustum_data(idx_filename, split, output_filename, viz=False,
                        perturb_box2d=False, augmentX=1, type_whitelist=['Car']):
-    ''' Extract point clouds and corresponding annotations in frustums
+    ''' Extract point clouds and corresponding annotations in frustums      #提取由2d框得到的三维立体视锥中的点云数据 ？-Y
         defined generated from 2D bounding boxes
-        Lidar points and 3d boxes are in *rect camera* coord system
+        Lidar points and 3d boxes are in *rect camera* coord system      
         (as that in 3d box label files)
         
     Input:
@@ -200,21 +200,22 @@ def extract_frustum_data(idx_filename, split, output_filename, viz=False,
         split: string, either trianing or testing
         output_filename: string, the name for output .pickle file
         viz: bool, whether to visualize extracted data
-        perturb_box2d: bool, whether to perturb the box2d
-            (used for data augmentation in train set)
+        perturb_box2d: bool, whether to perturb（扰动？） the box2d
+            (used for data augmentation(增广？) in train set)
         augmentX: scalar, how many augmentations to have for each 2D box.
         type_whitelist: a list of strings, object types we are interested in.
     Output:
         None (will write a .pickle file to the disk)
     '''
-    dataset = kitti_object(os.path.join(ROOT_DIR,'dataset/KITTI/object'), split)
-    data_idx_list = [int(line.rstrip()) for line in open(idx_filename)]
-
+    dataset = kitti_object(os.path.join(ROOT_DIR,'dataset/KITTI/object'), split)     #根据路径来建立一个kitti_object对象
+    data_idx_list = [int(line.rstrip()) for line in open(idx_filename)]    #string.retrip(char) 去掉字符串末尾的字符char（末尾有几个char就去除几个char)默认为空格
+                                                                           #这句话的作用应该是把所有文件的编号放到一个列表里 eg['000000','000001',....],然后下面的操作都是根据文件的编号（就是kitti文件的文件名）来取出相应的文件
+    #关于kitti数据集的坐标系的含义，以及坐标系的转换的公式的问题 可以参考 https://blog.csdn.net/KYJL888/article/details/82844823 -Y
     id_list = [] # int number
     box2d_list = [] # [xmin,ymin,xmax,ymax]
-    box3d_list = [] # (8,3) array in rect camera coord
+    box3d_list = [] # (8,3) array in rect camera coord   ps:rect camera coord 应该是指参考相机坐标系，即PO（编号为0的相机）的坐标系-Y
     input_list = [] # channel number = 4, xyz,intensity in rect camera coord
-    label_list = [] # 1 for roi object, 0 for clutter
+    label_list = [] # 1 for roi object, 0 for clutter        ps:1是指 roi(rigon of interest)区域，0是指干扰区域 -Y
     type_list = [] # string e.g. Car
     heading_list = [] # ry (along y-axis in rect camera coord) radius of
     # (cont.) clockwise angle from positive x axis in velo coord.
