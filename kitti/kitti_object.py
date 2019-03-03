@@ -79,13 +79,13 @@ class kitti_object_video(object):
         self.calib = utils.Calibration(calib_dir, from_video=True)//调用Calibration进行标定 -H
         self.img_dir = img_dir
         self.lidar_dir = lidar_dir
-        self.img_filenames = sorted([os.path.join(img_dir, filename) \
+        self.img_filenames = sorted([os.path.join(img_dir, filename) //sorted生成排序后的新list，不改变原list -H
             for filename in os.listdir(img_dir)])
         self.lidar_filenames = sorted([os.path.join(lidar_dir, filename) \
             for filename in os.listdir(lidar_dir)])
-        print(len(self.img_filenames))
+        print(len(self.img_filenames))//返回self.num_samples -H
         print(len(self.lidar_filenames))
-        #assert(len(self.img_filenames) == len(self.lidar_filenames))
+        #assert(len(self.img_filenames) == len(self.lidar_filenames))//要求处理前后的num_samples一致-H
         self.num_samples = len(self.img_filenames)
 
     def __len__(self):
@@ -106,7 +106,7 @@ class kitti_object_video(object):
 
 def viz_kitti_video():
     video_path = os.path.join(ROOT_DIR, 'dataset/2011_09_26/')
-    dataset = kitti_object_video(\
+    dataset = kitti_object_video(\    //数据集 -H
         os.path.join(video_path, '2011_09_26_drive_0023_sync/image_02/data'),
         os.path.join(video_path, '2011_09_26_drive_0023_sync/velodyne_points/data'),
         video_path)
@@ -152,7 +152,7 @@ def get_lidar_in_image_fov(pc_velo, calib, xmin, ymin, xmax, ymax,
 def show_lidar_with_boxes(pc_velo, objects, calib,
                           img_fov=False, img_width=None, img_height=None): 
     ''' Show all LiDAR points.
-        Draw 3d box in LiDAR point cloud (in velo coord system) '''
+        Draw 3d box in LiDAR point cloud (in velo coord system) '''//显示所有激光雷达点。在LiDAR point cloud中绘制3d box(在velo coord系统中) -H
     if 'mlab' not in sys.modules: import mayavi.mlab as mlab
     from viz_util import draw_lidar_simple, draw_lidar, draw_gt_boxes3d
 
@@ -180,7 +180,7 @@ def show_lidar_with_boxes(pc_velo, objects, calib,
             tube_radius=None, line_width=1, figure=fig)
     mlab.show(1)
 
-def show_lidar_on_image(pc_velo, img, calib, img_width, img_height):
+def show_lidar_on_image(pc_velo, img, calib, img_width, img_height)://显示指向图像中的激光雷达 -H
     ''' Project LiDAR points to image '''
     imgfov_pc_velo, pts_2d, fov_inds = get_lidar_in_image_fov(pc_velo,
         calib, 0, 0, img_width, img_height, True)
