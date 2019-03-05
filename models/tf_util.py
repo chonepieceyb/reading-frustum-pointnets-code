@@ -27,6 +27,9 @@ def _variable_with_weight_decay(name, shape, stddev, wd, use_xavier=True):
 
   Note that the Variable is initialized with a truncated normal distribution.
   A weight decay is added only if one is specified.
+  Helper用于创建具有重量衰减的初始化变量。
+  请注意，变量初始化为截断的正态分布。
+  仅在指定了权重衰减时才添加权重衰减。
 
   Args:
     name: name of the variable
@@ -36,17 +39,32 @@ def _variable_with_weight_decay(name, shape, stddev, wd, use_xavier=True):
         decay is not added for this Variable.
     use_xavier: bool, whether to use xavier initializer
 
+   name：变量的名称
+   shape：整数列表
+   stddev：截断高斯的标准偏差（标准差）
+   wd：添加L2Loss权重衰减乘以此浮点数。 如果为None，则不为此变量添加权重衰减。
+   use_xavier：bool，是否使用xavier初始化程序]]
+
   Returns:
     Variable Tensor
+    可变张量
   """
   if use_xavier:
     initializer = tf.contrib.layers.xavier_initializer()
+    #返回一个用于初始化权重的初始化程序 “Xavier” 。这个初始化器是用来保持每一层的梯度大小都差不多相同。
   else:
     initializer = tf.truncated_normal_initializer(stddev=stddev)
-  var = _variable_on_cpu(name, shape, initializer)
+    #截取的正态分布
+  var = _variable_on_cpu(name, shape, initializer)#调用上个函数
+
   if wd is not None:
     weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
+    """tf.nn.l2_loss()用于优化的目标函数中的正则项，防止参数太多复杂容易过拟合。
+    这个函数的作用是利用 L2 范数来计算张量的误差值，但是没有开方并且只取 L2 范数的值的一半，具体如下：
+    output = sum(t ** 2) / 2
+    """
     tf.add_to_collection('losses', weight_decay)
+    #把变量放入一个集合，把很多变量变成一个列表
   return var
 
 
@@ -86,10 +104,14 @@ def conv1d(inputs,
     Variable tensor
   """
   with tf.variable_scope(scope) as sc:
+    # tf.variable_scope可以让变量有相同的命名，包括tf.get_variable得到的变量，还有tf.Variable的变量
     assert(data_format=='NHWC' or data_format=='NCHW')
+    #data_format 默认值为 "NHWC"，也可以手动设置为 "NCHW"。这个参数规定了 input Tensor 和 output Tensor 的排列方式。
     if data_format == 'NHWC':
-      num_in_channels = inputs.get_shape()[-1].value
+      #data_format 设置为 "NHWC" 时，排列顺序为 [batch, height, width, channels]；
+      num_in_channels = inputs.get_shape()[-1].value# 只有tensor有这个方法， 返回是一个tuple元组
     elif data_format=='NCHW':
+      #设置为 "NCHW" 时，排列顺序为 [batch, channels, height, width]。
       num_in_channels = inputs.get_shape()[1].value
     kernel_shape = [kernel_size,
                     num_in_channels, num_output_channels]
@@ -102,6 +124,7 @@ def conv1d(inputs,
                            stride=stride,
                            padding=padding,
                            data_format=data_format)
+                           #卷积方面
     biases = _variable_on_cpu('biases', [num_output_channels],
                               tf.constant_initializer(0.0))
     outputs = tf.nn.bias_add(outputs, biases, data_format=data_format)

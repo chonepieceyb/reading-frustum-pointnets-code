@@ -23,10 +23,10 @@ except NameError:
 
 class kitti_object(object):
     '''Load and parse object data into a usable format.'''
-    //将对象数据加载并解析为一种可用的格式 -H
+    #将对象数据加载并解析为一种可用的格式 -H
     
-    def __init__(self, root_dir, split='training')://初始化 -H
-        '''root_dir contains training and testing folders'''//root_dir包含训练和测试文件夹 -H
+    def __init__(self, root_dir, split='training'):#初始化 -H
+        '''root_dir contains training and testing folders'''#root_dir包含训练和测试文件夹 -H
         self.root_dir = root_dir
         self.split = split
         self.split_dir = os.path.join(root_dir, split)
@@ -106,10 +106,10 @@ class kitti_object_video(object):
 
 def viz_kitti_video():
     video_path = os.path.join(ROOT_DIR, 'dataset/2011_09_26/')
-    dataset = kitti_object_video(\    //数据集 -H
+    dataset = kitti_object_video(\   
         os.path.join(video_path, '2011_09_26_drive_0023_sync/image_02/data'),
         os.path.join(video_path, '2011_09_26_drive_0023_sync/velodyne_points/data'),
-        video_path)
+        video_path) #数据集 -H
     print(len(dataset))
     for i in range(len(dataset)):
         img = dataset.get_image(0)

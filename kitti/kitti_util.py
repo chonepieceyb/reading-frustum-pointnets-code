@@ -9,10 +9,10 @@ import numpy as np
 import cv2
 import os
 
-class Object3d(object)://3D物体类标签定义 -H
+class Object3d(object):#3D物体类标签定义 -H
     ''' 3d object label '''
     def __init__(self, label_file_line):
-        data = label_file_line.split(' ')//以空格分隔 -H
+        data = label_file_line.split(' ')#以空格分隔 -H
         data[1:] = [float(x) for x in data[1:]]
 
         # extract label, truncation, occlusion //提取标签，截断，遮挡 —H
