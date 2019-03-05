@@ -23,9 +23,10 @@ except NameError:
 
 class kitti_object(object):
     '''Load and parse object data into a usable format.'''
+    //将对象数据加载并解析为一种可用的格式 -H
     
-    def __init__(self, root_dir, split='training'):
-        '''root_dir contains training and testing folders'''
+    def __init__(self, root_dir, split='training')://初始化 -H
+        '''root_dir contains training and testing folders'''//root_dir包含训练和测试文件夹 -H
         self.root_dir = root_dir
         self.split = split
         self.split_dir = os.path.join(root_dir, split)
@@ -38,53 +39,53 @@ class kitti_object(object):
             print('Unknown split: %s' % (split))
             exit(-1)
 
-        self.image_dir = os.path.join(self.split_dir, 'image_2')
-        self.calib_dir = os.path.join(self.split_dir, 'calib')
-        self.lidar_dir = os.path.join(self.split_dir, 'velodyne')
+        self.image_dir = os.path.join(self.split_dir, 'image_2')//原图—H
+        self.calib_dir = os.path.join(self.split_dir, 'calib') //标定-H
+        self.lidar_dir = os.path.join(self.split_dir, 'velodyne')//点云—H
         self.label_dir = os.path.join(self.split_dir, 'label_2')
 
     def __len__(self):
         return self.num_samples
 
-    def get_image(self, idx):
-        assert(idx<self.num_samples) 
+    def get_image(self, idx)://加载图片-H
+        assert(idx<self.num_samples) //断言，若不满足条件就报错-H
         img_filename = os.path.join(self.image_dir, '%06d.png'%(idx))
         return utils.load_image(img_filename)
 
-    def get_lidar(self, idx): 
-        assert(idx<self.num_samples) 
+    def get_lidar(self, idx): //处理图片-H
+        assert(idx<self.num_samples) //断言，若不满足条件就报错-H
         lidar_filename = os.path.join(self.lidar_dir, '%06d.bin'%(idx))
         return utils.load_velo_scan(lidar_filename)
 
-    def get_calibration(self, idx):
-        assert(idx<self.num_samples) 
+    def get_calibration(self, idx)://校准图片-H
+        assert(idx<self.num_samples) //断言，若不满足条件就报错-H
         calib_filename = os.path.join(self.calib_dir, '%06d.txt'%(idx))
         return utils.Calibration(calib_filename)
 
-    def get_label_objects(self, idx):
-        assert(idx<self.num_samples and self.split=='training') 
+    def get_label_objects(self, idx)://读取物体标签-H
+        assert(idx<self.num_samples and self.split=='training') //断言，若不满足条件就报错-H
         label_filename = os.path.join(self.label_dir, '%06d.txt'%(idx))
         return utils.read_label(label_filename)
         
-    def get_depth_map(self, idx):
-        pass
+    def get_depth_map(self, idx)://获取深度图-H
+        pass//不进行操作，有点像continue —H
 
     def get_top_down(self, idx):
         pass
 
 class kitti_object_video(object):
-    ''' Load data for KITTI videos '''
-    def __init__(self, img_dir, lidar_dir, calib_dir):
-        self.calib = utils.Calibration(calib_dir, from_video=True)
+    ''' Load data for KITTI videos '''//为KITTI视频加载数据 -H
+    def __init__(self, img_dir, lidar_dir, calib_dir)://初始化，kitti_object的构造函数 -H
+        self.calib = utils.Calibration(calib_dir, from_video=True)//调用Calibration进行标定 -H
         self.img_dir = img_dir
         self.lidar_dir = lidar_dir
-        self.img_filenames = sorted([os.path.join(img_dir, filename) \
+        self.img_filenames = sorted([os.path.join(img_dir, filename) //sorted生成排序后的新list，不改变原list -H
             for filename in os.listdir(img_dir)])
         self.lidar_filenames = sorted([os.path.join(lidar_dir, filename) \
             for filename in os.listdir(lidar_dir)])
-        print(len(self.img_filenames))
+        print(len(self.img_filenames))//返回self.num_samples -H
         print(len(self.lidar_filenames))
-        #assert(len(self.img_filenames) == len(self.lidar_filenames))
+        #assert(len(self.img_filenames) == len(self.lidar_filenames))//要求处理前后的num_samples一致-H
         self.num_samples = len(self.img_filenames)
 
     def __len__(self):
@@ -105,7 +106,7 @@ class kitti_object_video(object):
 
 def viz_kitti_video():
     video_path = os.path.join(ROOT_DIR, 'dataset/2011_09_26/')
-    dataset = kitti_object_video(\
+    dataset = kitti_object_video(\    //数据集 -H
         os.path.join(video_path, '2011_09_26_drive_0023_sync/image_02/data'),
         os.path.join(video_path, '2011_09_26_drive_0023_sync/velodyne_points/data'),
         video_path)
@@ -151,7 +152,7 @@ def get_lidar_in_image_fov(pc_velo, calib, xmin, ymin, xmax, ymax,
 def show_lidar_with_boxes(pc_velo, objects, calib,
                           img_fov=False, img_width=None, img_height=None): 
     ''' Show all LiDAR points.
-        Draw 3d box in LiDAR point cloud (in velo coord system) '''
+        Draw 3d box in LiDAR point cloud (in velo coord system) '''//显示所有激光雷达点。在LiDAR point cloud中绘制3d box(在velo coord系统中) -H
     if 'mlab' not in sys.modules: import mayavi.mlab as mlab
     from viz_util import draw_lidar_simple, draw_lidar, draw_gt_boxes3d
 
@@ -179,7 +180,7 @@ def show_lidar_with_boxes(pc_velo, objects, calib,
             tube_radius=None, line_width=1, figure=fig)
     mlab.show(1)
 
-def show_lidar_on_image(pc_velo, img, calib, img_width, img_height):
+def show_lidar_on_image(pc_velo, img, calib, img_width, img_height)://显示指向图像中的激光雷达 -H
     ''' Project LiDAR points to image '''
     imgfov_pc_velo, pts_2d, fov_inds = get_lidar_in_image_fov(pc_velo,
         calib, 0, 0, img_width, img_height, True)

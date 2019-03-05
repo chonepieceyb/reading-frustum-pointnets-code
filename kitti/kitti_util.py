@@ -9,14 +9,14 @@ import numpy as np
 import cv2
 import os
 
-class Object3d(object):
+class Object3d(object)://3D物体类标签定义 -H
     ''' 3d object label '''
     def __init__(self, label_file_line):
-        data = label_file_line.split(' ')
+        data = label_file_line.split(' ')//以空格分隔 -H
         data[1:] = [float(x) for x in data[1:]]
 
-        # extract label, truncation, occlusion
-        self.type = data[0] # 'Car', 'Pedestrian', ...
+        # extract label, truncation, occlusion //提取标签，截断，遮挡 —H
+        self.type = data[0] # 'Car', 'Pedestrian', ...//物体种类
         self.truncation = data[1] # truncated pixel ratio [0..1]  截断程度 h
         self.occlusion = int(data[2]) # 0=visible, 1=partly occluded, 2=fully occluded, 3=unknown 被遮挡程度 h
         self.alpha = data[3] # object observation angle [-pi..pi] 观察角度 h
