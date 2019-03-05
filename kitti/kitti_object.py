@@ -39,47 +39,47 @@ class kitti_object(object):
             print('Unknown split: %s' % (split))
             exit(-1)
 
-        self.image_dir = os.path.join(self.split_dir, 'image_2')//原图—H
-        self.calib_dir = os.path.join(self.split_dir, 'calib') //标定-H
-        self.lidar_dir = os.path.join(self.split_dir, 'velodyne')//点云—H
+        self.image_dir = os.path.join(self.split_dir, 'image_2')    #原图—H
+        self.calib_dir = os.path.join(self.split_dir, 'calib')      #标定-H
+        self.lidar_dir = os.path.join(self.split_dir, 'velodyne')   #点云—H
         self.label_dir = os.path.join(self.split_dir, 'label_2')
 
     def __len__(self):
         return self.num_samples
 
-    def get_image(self, idx)://加载图片-H
+    def get_image(self, idx): #加载图片-H
         assert(idx<self.num_samples) //断言，若不满足条件就报错-H
         img_filename = os.path.join(self.image_dir, '%06d.png'%(idx))
         return utils.load_image(img_filename)
 
-    def get_lidar(self, idx): //处理图片-H
+    def get_lidar(self, idx): #处理图片-H
         assert(idx<self.num_samples) //断言，若不满足条件就报错-H
         lidar_filename = os.path.join(self.lidar_dir, '%06d.bin'%(idx))
         return utils.load_velo_scan(lidar_filename)
 
-    def get_calibration(self, idx)://校准图片-H
-        assert(idx<self.num_samples) //断言，若不满足条件就报错-H
+    def get_calibration(self, idx):#校准图片-H
+        assert(idx<self.num_samples)        #断言，若不满足条件就报错-H  ，补充说明这句话是说如果下标超出文件的范围就报错
         calib_filename = os.path.join(self.calib_dir, '%06d.txt'%(idx))
         return utils.Calibration(calib_filename)
 
-    def get_label_objects(self, idx)://读取物体标签-H
-        assert(idx<self.num_samples and self.split=='training') //断言，若不满足条件就报错-H
+    def get_label_objects(self, idx):#读取物体标签-H
+        assert(idx<self.num_samples and self.split=='training') #断言，若不满足条件就报错-H
         label_filename = os.path.join(self.label_dir, '%06d.txt'%(idx))
         return utils.read_label(label_filename)
         
-    def get_depth_map(self, idx)://获取深度图-H
+    def get_depth_map(self, idx):#获取深度图-H
         pass//不进行操作，有点像continue —H
 
     def get_top_down(self, idx):
         pass
 
 class kitti_object_video(object):
-    ''' Load data for KITTI videos '''//为KITTI视频加载数据 -H
-    def __init__(self, img_dir, lidar_dir, calib_dir)://初始化，kitti_object的构造函数 -H
-        self.calib = utils.Calibration(calib_dir, from_video=True)//调用Calibration进行标定 -H
+    ''' Load data for KITTI videos '''   #为KITTI视频加载数据 -H
+    def __init__(self, img_dir, lidar_dir, calib_dir):   #初始化，kitti_object的构造函数 -H
+        self.calib = utils.Calibration(calib_dir, from_video=True)   #调用Calibration进行标定 -H
         self.img_dir = img_dir
         self.lidar_dir = lidar_dir
-        self.img_filenames = sorted([os.path.join(img_dir, filename) //sorted生成排序后的新list，不改变原list -H
+        self.img_filenames = sorted([os.path.join(img_dir, filename) #sorted生成排序后的新list，不改变原list -H
             for filename in os.listdir(img_dir)])
         self.lidar_filenames = sorted([os.path.join(lidar_dir, filename) \
             for filename in os.listdir(lidar_dir)])
@@ -106,7 +106,9 @@ class kitti_object_video(object):
 
 def viz_kitti_video():
     video_path = os.path.join(ROOT_DIR, 'dataset/2011_09_26/')
-    dataset = kitti_object_video(\   
+
+    dataset = kitti_object_video(\                       #数据集 -H
+
         os.path.join(video_path, '2011_09_26_drive_0023_sync/image_02/data'),
         os.path.join(video_path, '2011_09_26_drive_0023_sync/velodyne_points/data'),
         video_path) #数据集 -H
@@ -136,14 +138,14 @@ def show_image_with_boxes(img, objects, calib, show3d=True):
     if show3d:
         Image.fromarray(img2).show()
 
-def get_lidar_in_image_fov(pc_velo, calib, xmin, ymin, xmax, ymax,
+def get_lidar_in_image_fov(pc_velo, calib, xmin, ymin, xmax, ymax,       #由在prepare文件里该函数的调用情况来看 pc_velo 是 n*3
                            return_more=False, clip_distance=2.0):
-    ''' Filter lidar points, keep those in image FOV '''
-    pts_2d = calib.project_velo_to_image(pc_velo)
-    fov_inds = (pts_2d[:,0]<xmax) & (pts_2d[:,0]>=xmin) & \
+    ''' Filter lidar points, keep those in image FOV '''       #经查阅资料，FOV应该是指相机的最大取像范围 -Y
+    pts_2d = calib.project_velo_to_image(pc_velo)              #下面那个操作是按位与,下面那句话的效果取出所有满足下列条件的点（从雷达坐标系，投影到相机坐标系的时候，仍然在图片范围里） fov_inds应该是由true和false构成的一个队列 -Y
+    fov_inds = (pts_2d[:,0]<xmax) & (pts_2d[:,0]>=xmin) & \                    
         (pts_2d[:,1]<ymax) & (pts_2d[:,1]>=ymin)
-    fov_inds = fov_inds & (pc_velo[:,0]>clip_distance)
-    imgfov_pc_velo = pc_velo[fov_inds,:]
+    fov_inds = fov_inds & (pc_velo[:,0]>clip_distance)        #这句代码的作用是，取出的点云，不但要满足投影后仍然在图像中，而且其距离坐标系原点的距离(pc_velo[:,0]，0列是x,x是朝前的）还需要大于 clip_distance 
+    imgfov_pc_velo = pc_velo[fov_inds,:]      #通过掩模进行切片，过滤掉所需要的点,return_more就是返回更多的信息，把投影到2d图像上的点集和掩模fov_inds一起返回了
     if return_more:
         return imgfov_pc_velo, pts_2d, fov_inds
     else:
@@ -152,7 +154,7 @@ def get_lidar_in_image_fov(pc_velo, calib, xmin, ymin, xmax, ymax,
 def show_lidar_with_boxes(pc_velo, objects, calib,
                           img_fov=False, img_width=None, img_height=None): 
     ''' Show all LiDAR points.
-        Draw 3d box in LiDAR point cloud (in velo coord system) '''//显示所有激光雷达点。在LiDAR point cloud中绘制3d box(在velo coord系统中) -H
+        Draw 3d box in LiDAR point cloud (in velo coord system) ''' #显示所有激光雷达点。在LiDAR point cloud中绘制3d box(在velo coord系统中) -H
     if 'mlab' not in sys.modules: import mayavi.mlab as mlab
     from viz_util import draw_lidar_simple, draw_lidar, draw_gt_boxes3d
 

@@ -214,43 +214,44 @@ def extract_frustum_data(idx_filename, split, output_filename, viz=False,
     id_list = [] # int number
     box2d_list = [] # [xmin,ymin,xmax,ymax]
     box3d_list = [] # (8,3) array in rect camera coord   ps:rect camera coord 应该是指参考相机坐标系，即PO（编号为0的相机）的坐标系-Y
-    input_list = [] # channel number = 4, xyz,intensity in rect camera coord
+    input_list = [] # channel number = 4, xyz,intensity in rect camera coord   #把空间中三个向量扩充成了四个向量-Y
     label_list = [] # 1 for roi object, 0 for clutter        ps:1是指 roi(rigon of interest)区域，0是指干扰区域 -Y
     type_list = [] # string e.g. Car
-    heading_list = [] # ry (along y-axis in rect camera coord) radius of
+    heading_list = [] # ry (along y-axis in rect camera coord) radius of          
     # (cont.) clockwise angle from positive x axis in velo coord.
     box3d_size_list = [] # array of l,w,h
-    frustum_angle_list = [] # angle of 2d box center from pos x-axis
+    frustum_angle_list = [] # angle of 2d box center from pos x-axis      
 
     pos_cnt = 0
     all_cnt = 0
-    for data_idx in data_idx_list:
+    for data_idx in data_idx_list:       #
         print('------------- ', data_idx)
-        calib = dataset.get_calibration(data_idx) # 3 by 4 matrix
-        objects = dataset.get_label_objects(data_idx)
-        pc_velo = dataset.get_lidar(data_idx)
-        pc_rect = np.zeros_like(pc_velo)
-        pc_rect[:,0:3] = calib.project_velo_to_rect(pc_velo[:,0:3])
-        pc_rect[:,3] = pc_velo[:,3]
-        img = dataset.get_image(data_idx)
-        img_height, img_width, img_channel = img.shape
+        calib = dataset.get_calibration(data_idx) # 3 by 4 matrix       #根据kitti_units和kitti_object判断这个操作是获取相应的data_idx对应的图片的calib文件，包括几个投影矩阵和相机的内外参是一个类，具体的内容见 kitti_unitl的line81和kitti_object的line60
+        objects = dataset.get_label_objects(data_idx)                   #返回识别出来的物体，objects应该是一个list，里面存放这每张图片标注的物品的信息
+        pc_velo = dataset.get_lidar(data_idx)          #获取对应图片的点云数据，格式是一个N*4的numpy array，以np.float32格式储存
+        pc_rect = np.zeros_like(pc_velo)               #返回一个和pc_velo形状和数据类型相同的array
+        pc_rect[:,0:3] = calib.project_velo_to_rect(pc_velo[:,0:3])    #将点从雷达坐标系投影到rect坐标系，输入是n*4输出是n*3
+        pc_rect[:,3] = pc_velo[:,3]                  #最后一列（第四列）均赋值为1
+        img = dataset.get_image(data_idx)             #获取图片,具体代码在 kitti_util的273行，用opencv的imread方法读取一张图片（应该还是彩色图片） -Y
+        img_height, img_width, img_channel = img.shape               #img.shape返回 宽，高，颜色通道数
         _, pc_image_coord, img_fov_inds = get_lidar_in_image_fov(pc_velo[:,0:3],
             calib, 0, 0, img_width, img_height, True)
 
-        for obj_idx in range(len(objects)):
-            if objects[obj_idx].type not in type_whitelist :continue
+        for obj_idx in range(len(objects)):       #object是单张图片里标定出来的物品集 eg car
+            if objects[obj_idx].type not in type_whitelist :continue        #如果不是所要识别的对象
 
             # 2D BOX: Get pts rect backprojected 
-            box2d = objects[obj_idx].box2d
-            for _ in range(augmentX):
+            box2d = objects[obj_idx].box2d                      #获取box2d
+            for _ in range(augmentX):                           #  _ 是过滤后的点云集,augmentX是函数的参数
                 # Augment data by box2d perturbation
-                if perturb_box2d:
+                if perturb_box2d:                                       #对2D图像上物体的框进行随机扰动
                     xmin,ymin,xmax,ymax = random_shift_box2d(box2d)
-                    print(box2d)
+                    print(box2d)                                             
                     print(xmin,ymin,xmax,ymax)
                 else:
                     xmin,ymin,xmax,ymax = box2d
-                box_fov_inds = (pc_image_coord[:,0]<xmax) & \
+                #pc
+                box_fov_inds = (pc_image_coord[:,0]<xmax) & \      
                     (pc_image_coord[:,0]>=xmin) & \
                     (pc_image_coord[:,1]<ymax) & \
                     (pc_image_coord[:,1]>=ymin)

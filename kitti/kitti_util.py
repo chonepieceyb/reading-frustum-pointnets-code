@@ -9,10 +9,13 @@ import numpy as np
 import cv2
 import os
 
-class Object3d(object):#3D物体类标签定义 -H
+
+class Object3d(object): #3D物体类标签定义 -H
     ''' 3d object label '''
     def __init__(self, label_file_line):
-        data = label_file_line.split(' ')#以空格分隔 -H
+        data = label_file_line.split(' ')  #以空格分隔 -H  ps:返回分割后的所有的子字符串，每一个label_file_line就是一个目标 eg： Pedestrian 0.00 0 -0.20 712.40 143.00 810.73 307.92 1.89 0.48 1.20 1.84 1.47 8.41 0.01 -Y
+
+
         data[1:] = [float(x) for x in data[1:]]
 
         # extract label, truncation, occlusion //提取标签，截断，遮挡 —H
@@ -81,20 +84,20 @@ class Calibration(object):
     def __init__(self, calib_filepath, from_video=False):
         if from_video:
             calibs = self.read_calib_from_video(calib_filepath)
-        else:
+        else:                             #先用read_calib_file函数读取calib文件并且储存为字典这种数据结构-Y
             calibs = self.read_calib_file(calib_filepath)
-        # Projection matrix from rect camera coord to image2 coord
+        # Projection matrix from rect camera coord to image2 coord    #为了实现将点从rect camera坐标系投影到 P2图片坐标系，需要将投影矩阵P2扩充成 3*4矩阵 -Y
         self.P = calibs['P2'] 
         self.P = np.reshape(self.P, [3,4])
-        # Rigid transform from Velodyne coord to reference camera coord
+        # Rigid transform from Velodyne coord to reference camera coord     #V2C矩阵也做同样的操作，需要重新整形 -Y
         self.V2C = calibs['Tr_velo_to_cam']
         self.V2C = np.reshape(self.V2C, [3,4])
         self.C2V = inverse_rigid_trans(self.V2C)
-        # Rotation from reference camera coord to rect camera coord
+        # Rotation from reference camera coord to rect camera coord         #将点从参考相机坐标系投影到 rect camera坐标系
         self.R0 = calibs['R0_rect']
         self.R0 = np.reshape(self.R0,[3,3])
 
-        # Camera intrinsics and extrinsics
+        # Camera intrinsics and extrinsics    #相机的内外参数 -Y
         self.c_u = self.P[0,2]
         self.c_v = self.P[1,2]
         self.f_u = self.P[0,0]
@@ -139,11 +142,12 @@ class Calibration(object):
         return data
 
     def cart2hom(self, pts_3d):
-        ''' Input: nx3 points in Cartesian
-            Oupput: nx4 points in Homogeneous by pending 1
+        ''' Input: nx3 points in Cartesian       #n*3在笛卡尔坐标系中的坐标
+            Oupput: nx4 points in Homogeneous by pending 1   #多加一维写成齐次的形式
         '''
-        n = pts_3d.shape[0]
-        pts_3d_hom = np.hstack((pts_3d, np.ones((n,1))))
+
+        n = pts_3d.shape[0] #numpy.array.shape的作用是返回一个元组，元组的每一个元素代表相应的维度，这里shape[0]表示取pts_3d的第一个维度 即n的数值 -Y
+        pts_3d_hom = np.hstack((pts_3d, np.ones((n,1)))) #np.ones((n,1))产生一个 n*1的，值都为1的向量  -Y
         """它其实就是水平(按列顺序)把数组给堆叠起来，np.concatenate(tup, axis=1)
         vstack()函数正好和它相反，np.concatenate(tup, axis=0) if tup contains arrays thatare at least 2-dimensional.
         concatenate((a1, a2, …), axis=0) 用于数组拼接  数组满足在拼接方向axis轴上数组间的形状一致即可 在第axis维度上进行拼接
@@ -152,20 +156,22 @@ class Calibration(object):
          h
         
         """
+
+
         return pts_3d_hom
  
     # =========================== 
     # ------- 3d to 3d ---------- velo，ref，rect，image 四个坐标系间的转换
     # =========================== 
-    def project_velo_to_ref(self, pts_3d_velo):
-        pts_3d_velo = self.cart2hom(pts_3d_velo) # nx4
-        return np.dot(pts_3d_velo, np.transpose(self.V2C))#self.V2C (3,4)
+    def project_velo_to_ref(self, pts_3d_velo):                #把雷达坐标系下的点 投影到参考相机坐标系（ref坐标系）中
+        pts_3d_velo = self.cart2hom(pts_3d_velo) # 先将n*3扩充成nx4
+        return np.dot(pts_3d_velo, np.transpose(self.V2C))#self.V2C (3,4)  ,输出是 n*3
 
-    def project_ref_to_velo(self, pts_3d_ref):
+    def project_ref_to_velo(self, pts_3d_ref):                #把ref坐标系下的点投影到雷达坐标系中
         pts_3d_ref = self.cart2hom(pts_3d_ref) # nx4
         return np.dot(pts_3d_ref, np.transpose(self.C2V))#(n,3)
 
-    def project_rect_to_ref(self, pts_3d_rect):
+    def project_rect_to_ref(self, pts_3d_rect):                      #把rect坐标系下的点投影到ref坐标系中
         ''' Input and Output are nx3 points '''
         return np.transpose(np.dot(np.linalg.inv(self.R0), np.transpose(pts_3d_rect)))
         #np.linalg.inv()：矩阵求逆      np.linalg.det()：矩阵求行列式（标量）
@@ -181,8 +187,8 @@ class Calibration(object):
         pts_3d_ref = self.project_rect_to_ref(pts_3d_rect)
         return self.project_ref_to_velo(pts_3d_ref)
 
-    def project_velo_to_rect(self, pts_3d_velo):
-        pts_3d_ref = self.project_velo_to_ref(pts_3d_velo)
+    def project_velo_to_rect(self, pts_3d_elo):
+        pts_3d_ref = self.project_velo_to_ref(pts_3d_velo)  #输入是 n*4输出是n*3                      
         return self.project_ref_to_rect(pts_3d_ref)
 
     # =========================== 
