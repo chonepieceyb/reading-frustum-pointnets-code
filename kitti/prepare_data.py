@@ -233,32 +233,32 @@ def extract_frustum_data(idx_filename, split, output_filename, viz=False,
         pc_rect[:,0:3] = calib.project_velo_to_rect(pc_velo[:,0:3])    #将点从雷达坐标系投影到rect坐标系，输入是n*4输出是n*3
         pc_rect[:,3] = pc_velo[:,3]                  #最后一列（第四列）均赋值为1
         img = dataset.get_image(data_idx)             #获取图片,具体代码在 kitti_util的273行，用opencv的imread方法读取一张图片（应该还是彩色图片） -Y
-        img_height, img_width, img_channel = img.shape               #img.shape返回 宽，高，颜色通道数
+        img_height, img_width, img_channel = img.shape               #img.shape返回 宽，高，颜色通道数 -Y
         _, pc_image_coord, img_fov_inds = get_lidar_in_image_fov(pc_velo[:,0:3],
             calib, 0, 0, img_width, img_height, True)
 
-        for obj_idx in range(len(objects)):       #object是单张图片里标定出来的物品集 eg car
-            if objects[obj_idx].type not in type_whitelist :continue        #如果不是所要识别的对象
+        for obj_idx in range(len(objects)):       #object是单张图片里标定出来的物品集 eg car -Y
+            if objects[obj_idx].type not in type_whitelist :continue        #如果不是所要识别的对象 -Y
 
             # 2D BOX: Get pts rect backprojected 
             box2d = objects[obj_idx].box2d                      #获取box2d
-            for _ in range(augmentX):                           #  _ 是过滤后的点云集,augmentX是函数的参数
+            for _ in range(augmentX):                           #  _ 是过滤后的点云集,augmentX是函数的参数 -Y
                 # Augment data by box2d perturbation
-                if perturb_box2d:                                       #对2D图像上物体的框进行随机扰动
+                if perturb_box2d:                                       #对2D图像上物体的框进行随机扰动 -Y
                     xmin,ymin,xmax,ymax = random_shift_box2d(box2d)
                     print(box2d)                                             
                     print(xmin,ymin,xmax,ymax)
                 else:
                     xmin,ymin,xmax,ymax = box2d
-                #pc
+                #pc_image_coord, 所有的点云数据投影到2D图像坐标系下的点集,下面这段话是要进行过滤，让点云数据只能投影到识别出的物体的 2d_box内
                 box_fov_inds = (pc_image_coord[:,0]<xmax) & \      
                     (pc_image_coord[:,0]>=xmin) & \
                     (pc_image_coord[:,1]<ymax) & \
                     (pc_image_coord[:,1]>=ymin)
-                box_fov_inds = box_fov_inds & img_fov_inds
-                pc_in_box_fov = pc_rect[box_fov_inds,:]
+                box_fov_inds = box_fov_inds & img_fov_inds       #将两个掩模进行与操作，     
+                pc_in_box_fov = pc_rect[box_fov_inds,:]          #用掩模切片，取出在rect坐标系下，能够投影到所识别物体的 2d_box内的点，到这里应该也就初步完成了点云的过滤
                 # Get frustum angle (according to center pixel in 2D BOX)
-                box2d_center = np.array([(xmin+xmax)/2.0, (ymin+ymax)/2.0])
+                box2d_center = np.array([(xmin+xmax)/2.0, (ymin+ymax)/2.0])          #计算2d_box的中心
                 uvdepth = np.zeros((1,3))
                 uvdepth[0,0:2] = box2d_center
                 uvdepth[0,2] = 20 # some random depth

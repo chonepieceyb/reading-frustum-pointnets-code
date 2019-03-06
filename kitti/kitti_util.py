@@ -230,7 +230,7 @@ def rotx(t):
                      [0,  s,  c]])
 
 
-def roty(t):
+def roty(t):        #绕着y周旋转
     ''' Rotation about the y-axis. '''
     c = np.cos(t)
     s = np.sin(t)
@@ -308,24 +308,24 @@ def compute_box_3d(obj, P):
             corners_3d: (8,3) array in in rect camera coord.
     '''
     # compute rotational matrix around yaw axis
-    R = roty(obj.ry)    
+    R = roty(obj.ry)                       #   obj.ry, rotation_y yaw angle (around Y-axis in camera coordinates) [-pi..pi]  .这时候R是一个旋转矩阵，效果是绕y轴旋转ry
 
     # 3d bounding box dimensions
-    l = obj.l;
-    w = obj.w;
-    h = obj.h;
+    l = obj.l            
+    w = obj.w
+    h = obj.h
     
     # 3d bounding box corners
-    x_corners = [l/2,l/2,-l/2,-l/2,l/2,l/2,-l/2,-l/2];
-    y_corners = [0,0,0,0,-h,-h,-h,-h];
-    z_corners = [w/2,-w/2,-w/2,w/2,w/2,-w/2,-w/2,w/2];
+    x_corners = [l/2,l/2,-l/2,-l/2,l/2,l/2,-l/2,-l/2]                    #这里参考kitti里的readme文件，3d_box的坐标是在相机坐标系里的，根据这里的几个算式，其中心应该是在3d框的上面那个面的中心位置
+    y_corners = [0,0,0,0,-h,-h,-h,-h]                                    #先把框放在原位
+    z_corners = [w/2,-w/2,-w/2,w/2,w/2,-w/2,-w/2,w/2]
     
     # rotate and translate 3d bounding box
-    corners_3d = np.dot(R, np.vstack([x_corners,y_corners,z_corners]))
+    corners_3d = np.dot(R, np.vstack([x_corners,y_corners,z_corners]))    #左乘旋转矩阵，旋转框
     #print corners_3d.shape
-    corners_3d[0,:] = corners_3d[0,:] + obj.t[0];
-    corners_3d[1,:] = corners_3d[1,:] + obj.t[1];
-    corners_3d[2,:] = corners_3d[2,:] + obj.t[2];
+    corners_3d[0,:] = corners_3d[0,:] + obj.t[0]                         #旋转后的八个角的坐标，加上数据集提供的框框的中心坐标，做平移操作，中心坐标是在上面那个面的中心？（猜测） -Y
+    corners_3d[1,:] = corners_3d[1,:] + obj.t[1]
+    corners_3d[2,:] = corners_3d[2,:] + obj.t[2]
     #print 'cornsers_3d: ', corners_3d 
     # only draw 3d bounding box for objs in front of the camera
     if np.any(corners_3d[2,:]<0.1):
@@ -333,7 +333,7 @@ def compute_box_3d(obj, P):
         return corners_2d, np.transpose(corners_3d)
     
     # project the 3d bounding box into the image plane
-    corners_2d = project_to_image(np.transpose(corners_3d), P);
+    corners_2d = project_to_image(np.transpose(corners_3d), P)
     #print 'corners_2d: ', corners_2d
     return corners_2d, np.transpose(corners_3d)
 

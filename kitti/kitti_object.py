@@ -25,8 +25,8 @@ class kitti_object(object):
     '''Load and parse object data into a usable format.'''
     #将对象数据加载并解析为一种可用的格式 -H
     
-    def __init__(self, root_dir, split='training')://初始化 -H
-        '''root_dir contains training and testing folders'''//root_dir包含训练和测试文件夹 -H
+    def __init__(self, root_dir, split='training'):#初始化 -H
+        '''root_dir contains training and testing folders'''#root_dir包含训练和测试文件夹 -H
         self.root_dir = root_dir
         self.split = split
         self.split_dir = os.path.join(root_dir, split)
