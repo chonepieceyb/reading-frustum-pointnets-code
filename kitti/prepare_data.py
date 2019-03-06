@@ -227,14 +227,14 @@ def extract_frustum_data(idx_filename, split, output_filename, viz=False,
     for data_idx in data_idx_list:       #
         print('------------- ', data_idx)
         calib = dataset.get_calibration(data_idx) # 3 by 4 matrix       #根据kitti_units和kitti_object判断这个操作是获取相应的data_idx对应的图片的calib文件，包括几个投影矩阵和相机的内外参是一个类，具体的内容见 kitti_unitl的line81和kitti_object的line60
-        objects = dataset.get_label_objects(data_idx)                   #返回识别出来的物体，objects应该是一个list，里面存放这每张图片标注的物品的信息
-        pc_velo = dataset.get_lidar(data_idx)          #获取对应图片的点云数据，格式是一个N*4的numpy array，以np.float32格式储存
-        pc_rect = np.zeros_like(pc_velo)               #返回一个和pc_velo形状和数据类型相同的array
-        pc_rect[:,0:3] = calib.project_velo_to_rect(pc_velo[:,0:3])    #将点从雷达坐标系投影到rect坐标系，输入是n*4输出是n*3
+        objects = dataset.get_label_objects(data_idx)                   #返回识别出来的物体，objects应该是一个list，里面存放这每张图片标注的物品的信息 -Y
+        pc_velo = dataset.get_lidar(data_idx)          #获取对应图片的点云数据，格式是一个N*4的numpy array，以np.float32格式储存 -Y
+        pc_rect = np.zeros_like(pc_velo)               #返回一个和pc_velo形状和数据类型相同的array -Y
+        pc_rect[:,0:3] = calib.project_velo_to_rect(pc_velo[:,0:3])    #将点从雷达坐标系投影到rect坐标系，输入是n*4输出是n*3 -Y
         pc_rect[:,3] = pc_velo[:,3]                  #最后一列（第四列）均赋值为1
         img = dataset.get_image(data_idx)             #获取图片,具体代码在 kitti_util的273行，用opencv的imread方法读取一张图片（应该还是彩色图片） -Y
         img_height, img_width, img_channel = img.shape               #img.shape返回 宽，高，颜色通道数 -Y
-        _, pc_image_coord, img_fov_inds = get_lidar_in_image_fov(pc_velo[:,0:3],
+        _, pc_image_coord, img_fov_inds = get_lidar_in_image_fov(pc_velo[:,0:3],   # _是经过筛选的在能够投影到2D图像框上的点集，在雷达坐标系下 n*3，具体见函数-Y
             calib, 0, 0, img_width, img_height, True)
 
         for obj_idx in range(len(objects)):       #object是单张图片里标定出来的物品集 eg car -Y
@@ -242,7 +242,7 @@ def extract_frustum_data(idx_filename, split, output_filename, viz=False,
 
             # 2D BOX: Get pts rect backprojected 
             box2d = objects[obj_idx].box2d                      #获取box2d
-            for _ in range(augmentX):                           #  _ 是过滤后的点云集,augmentX是函数的参数 -Y
+            for _ in range(augmentX):                           #  _ 是啥？ augmentX是啥？
                 # Augment data by box2d perturbation
                 if perturb_box2d:                                       #对2D图像上物体的框进行随机扰动 -Y
                     xmin,ymin,xmax,ymax = random_shift_box2d(box2d)
@@ -261,25 +261,25 @@ def extract_frustum_data(idx_filename, split, output_filename, viz=False,
                 box2d_center = np.array([(xmin+xmax)/2.0, (ymin+ymax)/2.0])          #计算2d_box的中心
                 uvdepth = np.zeros((1,3))
                 uvdepth[0,0:2] = box2d_center
-                uvdepth[0,2] = 20 # some random depth
-                box2d_center_rect = calib.project_image_to_rect(uvdepth)
-                frustum_angle = -1 * np.arctan2(box2d_center_rect[0,2],
+                uvdepth[0,2] = 20 # some random depth                               #设置一个随机的值，现在uvdepth应该是一个三维的坐标，其中x,y是box的center而第三个值是图像坐标系下的一个随机的z
+                box2d_center_rect = calib.project_image_to_rect(uvdepth)            #投影到 rect坐标系
+                frustum_angle = -1 * np.arctan2(box2d_center_rect[0,2],         #box2d_center_rect(x,y,z)    这里计算z/x的反三角
                     box2d_center_rect[0,0])
                 # 3D BOX: Get pts velo in 3d box
                 obj = objects[obj_idx]
-                box3d_pts_2d, box3d_pts_3d = utils.compute_box_3d(obj, calib.P) 
-                _,inds = extract_pc_in_box3d(pc_in_box_fov, box3d_pts_3d)
-                label = np.zeros((pc_in_box_fov.shape[0]))
-                label[inds] = 1
+                box3d_pts_2d, box3d_pts_3d = utils.compute_box_3d(obj, calib.P)    #经过计算， box3d_pts_2d(数据集给的3d框投影到平面图像image上的点的集合 8*2)   box3d_pts_3d（数据集给的3d框在rect坐标系下的点集)
+                _,inds = extract_pc_in_box3d(pc_in_box_fov, box3d_pts_3d)     #这个函数计算出，在rect坐标系下 过滤出pc_in_box_fov(n*3)中在 由box3d_pts_3d(8个corner)中的8个点构成的三角剖分网中的点并赋值给 _,将过滤得到的掩模赋值给inds
+                label = np.zeros((pc_in_box_fov.shape[0]))               #构造出一个 n*1向量，（n的个数就是之前经过2d_box提取出的，在rect坐标系下能够投影到 2d_box点的数目）
+                label[inds] = 1                                         #构造初一个label，pc_in_box_fov中在3d_box内的点都标记为1
                 # Get 3D BOX heading
                 heading_angle = obj.ry
                 # Get 3D BOX size
                 box3d_size = np.array([obj.l, obj.w, obj.h])
 
                 # Reject too far away object or object without points
-                if ymax-ymin<25 or np.sum(label)==0:
+                if ymax-ymin<25 or np.sum(label)==0:  
                     continue
-
+               #下面是训练数据的排列方式？ -Y
                 id_list.append(data_idx)
                 box2d_list.append(np.array([xmin,ymin,xmax,ymax]))
                 box3d_list.append(box3d_pts_3d)
