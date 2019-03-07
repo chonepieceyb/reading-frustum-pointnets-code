@@ -8,6 +8,7 @@ Date: September 2017
 而一些操作放在了 kitti_util里了，比如一些旋转等操作 -Y
 
 numpy的官方文档 https://docs.scipy.org/doc/numpy/reference/index.html
+mayavi的官方文档 http://docs.enthought.com/mayavi/mayavi/auto/mlab_figure.html#mayavi.mlab.figure
 '''
 from __future__ import print_function
 
@@ -297,8 +298,9 @@ def extract_frustum_data(idx_filename, split, output_filename, viz=False,
     print('Average pos ratio: %f' % (pos_cnt/float(all_cnt)))
     print('Average npoints: %f' % (float(all_cnt)/len(id_list)))
     
-    with open(output_filename,'wb') as fp:
-        pickle.dump(id_list, fp)
+    with open(output_filename,'wb') as fp:       #pickle.dump(obj, file, protocol) 序列化对象，并将结果数据流写入到文件对象中。参数protocol是序列化模式，默认值为0，表示以文本的形式序列化。protocol的值还可以是1或2，表示以二进制的形式序列化。
+　　
+        pickle.dump(id_list, fp)              
         pickle.dump(box2d_list,fp)
         pickle.dump(box3d_list,fp)
         pickle.dump(input_list, fp)
@@ -309,11 +311,28 @@ def extract_frustum_data(idx_filename, split, output_filename, viz=False,
         pickle.dump(frustum_angle_list, fp)
     
     if viz:
-        import mayavi.mlab as mlab
+        import mayavi.mlab as mlab        # mayavi官方文档http://docs.enthought.com/mayavi/mayavi/auto/mlab_figure.html#mayavi.mlab.figure
         for i in range(10):
             p1 = input_list[i]
             seg = label_list[i] 
-            fig = mlab.figure(figure=None, bgcolor=(0.4,0.4,0.4),
+            '''
+            mayavi.mlab.figure(figure=None, bgcolor=None, fgcolor=None, engine=None, size=(400, 350))
+            Creates a new scene or retrieves an existing scene. If the mayavi engine is not running this also starts it.
+            Keyword arguments
+
+
+            figure:
+            The name of the figure, or handle to it.
+            bgcolor:
+            The color of the background (None is default).
+            fgcolor:
+            The color of the foreground, that is the color of all text annotation labels (axes, orientation axes, scalar bar labels). It should be sufficiently far from bgcolor to see the annotation texts. (None is default).
+            engine:
+            The mayavi engine that controls the figure.
+            size:
+            The size of the scene created, in pixels. May not apply for certain scene viewer.
+            '''
+            fig = mlab.figure(figure=None, bgcolor=(0.4,0.4,0.4),   
                 fgcolor=None, engine=None, size=(500, 500))
             mlab.points3d(p1[:,0], p1[:,1], p1[:,2], seg, mode='point',
                 colormap='gnuplot', scale_factor=1, figure=fig)
@@ -332,21 +351,21 @@ def get_box3d_dim_statistics(idx_filename):
     data_idx_list = [int(line.rstrip()) for line in open(idx_filename)]
     for data_idx in data_idx_list:
         print('------------- ', data_idx)
-        calib = dataset.get_calibration(data_idx) # 3 by 4 matrix
-        objects = dataset.get_label_objects(data_idx)
+        calib = dataset.get_calibration(data_idx) # 3 by 4 matrix,获取标定信息
+        objects = dataset.get_label_objects(data_idx)  #获取标签信息,储存在了objects里，objects应该是一个列表
         for obj_idx in range(len(objects)):
             obj = objects[obj_idx]
-            if obj.type=='DontCare':continue
-            dimension_list.append(np.array([obj.l,obj.w,obj.h])) 
+            if obj.type=='DontCare':continue     #DontCare应该是指数据集中标出的不用注意的数据？ -Y
+            dimension_list.append(np.array([obj.l,obj.w,obj.h]))    #将长宽高，和类型，以及旋转角度的信息写入列表
             type_list.append(obj.type) 
             ry_list.append(obj.ry)
 
-    with open('box3d_dimensions.pickle','wb') as fp:
+    with open('box3d_dimensions.pickle','wb') as fp:             #将列表里的信息写入.pikle文件，应该是用来学习的数据
         pickle.dump(type_list, fp)
         pickle.dump(dimension_list, fp)
         pickle.dump(ry_list, fp)
 
-def read_det_file(det_filename):
+def read_det_file(det_filename):             #这个函数许哟读取哪一个文件？目测是rgb_detection_train.txt或者 rgb_detection_val.txt这两个文件（在kitti rgb_detections文件夹里）
     ''' Parse lines in 2D detection output files '''
     det_id2str = {1:'Pedestrian', 2:'Car', 3:'Cyclist'}
     id_list = []
@@ -354,19 +373,19 @@ def read_det_file(det_filename):
     prob_list = []
     box2d_list = []
     for line in open(det_filename, 'r'):
-        t = line.rstrip().split(" ")
-        id_list.append(int(os.path.basename(t[0]).rstrip('.png')))
-        type_list.append(det_id2str[int(t[1])])
-        prob_list.append(float(t[2]))
+        t = line.rstrip().split(" ")            # string.split(c) ,以c作为分隔符对字符串进行分割，返回一个列表，（还有一个参数，可以指定分割多少次） -Y
+        id_list.append(int(os.path.basename(t[0]).rstrip('.png')))      #这句话总的意思就是把图片的id添加到id_list中
+        type_list.append(det_id2str[int(t[1])])               #把识别的类型加入到type_list中
+        prob_list.append(float(t[2]))                           #prob_list是啥？ -Y
         box2d_list.append(np.array([float(t[i]) for i in range(3,7)]))
     return id_list, type_list, box2d_list, prob_list
 
  
-def extract_frustum_data_rgb_detection(det_filename, split, output_filename,
-                                       viz=False,
+def extract_frustum_data_rgb_detection(det_filename, split, output_filename,      #经过看后面main里的这个函数的调用过程，det_filename应该是指 rgb_detections/rgb_detection_val.txt
+                                       viz=False,                                 #而在rgb_detection_val.txt文件里，他貌似把lable信息里的与2d图像识别有关的比如 box_2d给单独提取出来了，但是数据上有出入，而且有一个参数不明了，就是上面的 prob_list，表示类型之后的下一个
                                        type_whitelist=['Car'],
-                                       img_height_threshold=25,
-                                       lidar_point_threshold=5):
+                                       img_height_threshold=25,                    #图片高度的阈值
+                                       lidar_point_threshold=5):                  #雷达点云数据的阈值
     ''' Extract point clouds in frustums extruded from 2D detection boxes.
         Update: Lidar points and 3d boxes are in *rect camera* coord system
             (as that in 3d box label files)
@@ -405,6 +424,7 @@ def extract_frustum_data_rgb_detection(det_filename, split, output_filename,
             pc_rect = np.zeros_like(pc_velo)
             pc_rect[:,0:3] = calib.project_velo_to_rect(pc_velo[:,0:3])
             pc_rect[:,3] = pc_velo[:,3]
+            #前几步操作和前一个函数的操作差不多
             img = dataset.get_image(data_idx)
             img_height, img_width, img_channel = img.shape
             _, pc_image_coord, img_fov_inds = get_lidar_in_image_fov(\
