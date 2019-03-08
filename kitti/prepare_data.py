@@ -432,23 +432,23 @@ def extract_frustum_data_rgb_detection(det_filename, split, output_filename,    
             cache = [calib,pc_rect,pc_image_coord,img_fov_inds]
             cache_id = data_idx
         else:
-            calib,pc_rect,pc_image_coord,img_fov_inds = cache
+            calib,pc_rect,pc_image_coord,img_fov_inds = cache                 #把雷达坐标系下的点投影到图片上写入缓冲区cache
 
-        if det_type_list[det_idx] not in type_whitelist: continue
+        if det_type_list[det_idx] not in type_whitelist: continue         #如果不是我们想要的类型的话就跳过
 
         # 2D BOX: Get pts rect backprojected 
-        xmin,ymin,xmax,ymax = det_box2d_list[det_idx]
-        box_fov_inds = (pc_image_coord[:,0]<xmax) & \
+        xmin,ymin,xmax,ymax = det_box2d_list[det_idx]                    #获取2d_box
+        box_fov_inds = (pc_image_coord[:,0]<xmax) & \                   
             (pc_image_coord[:,0]>=xmin) & \
             (pc_image_coord[:,1]<ymax) & \
             (pc_image_coord[:,1]>=ymin)
-        box_fov_inds = box_fov_inds & img_fov_inds
-        pc_in_box_fov = pc_rect[box_fov_inds,:]
+        box_fov_inds = box_fov_inds & img_fov_inds             #获取掩模，同之前的操作
+        pc_in_box_fov = pc_rect[box_fov_inds,:]                #获取能够投影到2d_box的在rect坐标系下的点
         # Get frustum angle (according to center pixel in 2D BOX)
         box2d_center = np.array([(xmin+xmax)/2.0, (ymin+ymax)/2.0])
         uvdepth = np.zeros((1,3))
         uvdepth[0,0:2] = box2d_center
-        uvdepth[0,2] = 20 # some random depth
+        uvdepth[0,2] = 20 # some random depth            #同之前,突然有个疑问，这里z的坐标取了一个随机值20，但是似乎取完就没了，没有进行修正么？
         box2d_center_rect = calib.project_image_to_rect(uvdepth)
         frustum_angle = -1 * np.arctan2(box2d_center_rect[0,2],
             box2d_center_rect[0,0])
@@ -461,11 +461,11 @@ def extract_frustum_data_rgb_detection(det_filename, split, output_filename,    
         id_list.append(data_idx)
         type_list.append(det_type_list[det_idx])
         box2d_list.append(det_box2d_list[det_idx])
-        prob_list.append(det_prob_list[det_idx])
+        prob_list.append(det_prob_list[det_idx])        #这个prob到底是干啥用的？
         input_list.append(pc_in_box_fov)
         frustum_angle_list.append(frustum_angle)
     
-    with open(output_filename,'wb') as fp:
+    with open(output_filename,'wb') as fp:               #写入数据
         pickle.dump(id_list, fp)
         pickle.dump(box2d_list,fp)
         pickle.dump(input_list, fp)
