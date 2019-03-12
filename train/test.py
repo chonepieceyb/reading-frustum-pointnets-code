@@ -13,7 +13,7 @@ import argparse
 import importlib
 import numpy as np
 import tensorflow as tf
-import cPickle as pickle
+import pickle as pickle
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(BASE_DIR)
@@ -22,6 +22,7 @@ from model_util import NUM_HEADING_BIN, NUM_SIZE_CLUSTER
 import provider
 from train_util import get_batch
 
+# 对于函数add_argument()参数第一个是选项，第二个是数据类型，第三个默认值，第四个是help命令时的说明
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
 parser.add_argument('--num_point', type=int, default=1024, help='Point Number [default: 1024]')
@@ -34,6 +35,7 @@ parser.add_argument('--from_rgb_detection', action='store_true', help='test from
 parser.add_argument('--idx_path', default=None, help='filename of txt where each line is a data idx, used for rgb detection -- write <id>.txt for all frames. [default: None]')
 parser.add_argument('--dump_result', action='store_true', help='If true, also dump results to .pickle file')
 FLAGS = parser.parse_args()
+# parse_args() 传递一组参数字符串来解析命令行，返回一个命名空间包含传递给命令的参数
 
 # Set training configurations
 BATCH_SIZE = FLAGS.batch_size
@@ -53,6 +55,8 @@ def get_session_and_ops(batch_size, num_point):
     ''' Define model graph, load model parameters,
     create session and return session handle and tensors
     '''
+    # 就是建立了主对话session和字典方便数据访问
+    # model那块还没看先放着.....
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
             pointclouds_pl, one_hot_vec_pl, labels_pl, centers_pl, \
@@ -65,9 +69,11 @@ def get_session_and_ops(batch_size, num_point):
             loss = MODEL.get_loss(labels_pl, centers_pl,
                 heading_class_label_pl, heading_residual_label_pl,
                 size_class_label_pl, size_residual_label_pl, end_points)
+            # 保存训练好的模型，生成 checkpoint 文件
             saver = tf.train.Saver()
 
         # Create a session
+        # 建立对话方便后面跑数据流图，同train
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         config.allow_soft_placement = True
@@ -92,6 +98,7 @@ def get_session_and_ops(batch_size, num_point):
 
 def softmax(x):
     ''' Numpy function for softmax'''
+    # softmax多分类 自行百度
     shape = x.shape
     probs = np.exp(x - np.max(x, axis=len(shape)-1, keepdims=True))
     probs /= np.sum(probs, axis=len(shape)-1, keepdims=True)
@@ -110,7 +117,7 @@ def inference(sess, ops, pc, one_hot_vec, batch_size):
     scores = np.zeros((pc.shape[0],)) # 3D box score 
    
     ep = ops['end_points'] 
-    for i in range(num_batches):
+    for i in range(int(num_batches)):
         feed_dict = {\
             ops['pointclouds_pl']: pc[i*batch_size:(i+1)*batch_size,...],
             ops['one_hot_vec_pl']: one_hot_vec[i*batch_size:(i+1)*batch_size,:],
@@ -232,8 +239,7 @@ def test_from_rgb_detection(output_filename, result_dir=None):
         batch_hclass_pred, batch_hres_pred, \
         batch_sclass_pred, batch_sres_pred, batch_scores = \
             inference(sess, ops, batch_data_to_feed,
-                batch_one_hot_to_feed, batch_size=batch_size)
-	
+                batch_one_hot_to_feed, batch_size=batch_size)	
         for i in range(cur_batch_size):
             ps_list.append(batch_data[i,...])
             segp_list.append(batch_output[i,...])
@@ -307,7 +313,7 @@ def test(output_filename, result_dir=None):
             get_batch(TEST_DATASET, test_idxs, start_idx, end_idx,
                 NUM_POINT, NUM_CHANNEL)
 
-	batch_output, batch_center_pred, \
+        batch_output, batch_center_pred, \
         batch_hclass_pred, batch_hres_pred, \
         batch_sclass_pred, batch_sres_pred, batch_scores = \
             inference(sess, ops, batch_data,

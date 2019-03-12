@@ -3,9 +3,10 @@
 Author: Charles R. Qi
 Date: September 2017
 '''
+
 from __future__ import print_function
 
-import cPickle as pickle
+import pickle as pickle
 import sys
 import os
 import numpy as np
@@ -82,7 +83,7 @@ def size2class(size, type_name):
         size_class: int scalar
         size_residual: numpy array of shape (3,)
     '''
-    size_class = g_type2class[type_name]
+    size_class = g_type2class[type_name]      #由于python2和python3的字典取key的差异，会报错，
     size_residual = size - g_type_mean_size[type_name]
     return size_class, size_residual
 
@@ -127,25 +128,25 @@ class FrustumDataset(object):
         self.from_rgb_detection = from_rgb_detection
         if from_rgb_detection:
             with open(overwritten_data_path,'rb') as fp:
-                self.id_list = pickle.load(fp)
-                self.box2d_list = pickle.load(fp)
-                self.input_list = pickle.load(fp)
-                self.type_list = pickle.load(fp)
+                self.id_list = pickle.load(fp,encoding='iso-8859-1')
+                self.box2d_list = pickle.load(fp,encoding='iso-8859-1')
+                self.input_list = pickle.load(fp,encoding='iso-8859-1')
+                self.type_list = pickle.load(fp,encoding='iso-8859-1')
                 # frustum_angle is clockwise angle from positive x-axis
-                self.frustum_angle_list = pickle.load(fp) 
-                self.prob_list = pickle.load(fp)
+                self.frustum_angle_list = pickle.load(fp,encoding='iso-8859-1') 
+                self.prob_list = pickle.load(fp,encoding='iso-8859-1')
         else:
             with open(overwritten_data_path,'rb') as fp:
-                self.id_list = pickle.load(fp)
-                self.box2d_list = pickle.load(fp)
-                self.box3d_list = pickle.load(fp)
-                self.input_list = pickle.load(fp)
-                self.label_list = pickle.load(fp)
-                self.type_list = pickle.load(fp)
-                self.heading_list = pickle.load(fp)
-                self.size_list = pickle.load(fp)
+                self.id_list = pickle.load(fp,encoding='iso-8859-1')      #python3和python2的差异必须加上encoding='bytes'
+                self.box2d_list = pickle.load(fp,encoding='iso-8859-1')
+                self.box3d_list = pickle.load(fp,encoding='iso-8859-1')
+                self.input_list = pickle.load(fp,encoding='iso-8859-1')
+                self.label_list = pickle.load(fp,encoding='iso-8859-1')
+                self.type_list = pickle.load(fp,encoding='iso-8859-1')
+                self.heading_list = pickle.load(fp,encoding='iso-8859-1')
+                self.size_list = pickle.load(fp,encoding='iso-8859-1')
                 # frustum_angle is clockwise angle from positive x-axis
-                self.frustum_angle_list = pickle.load(fp) 
+                self.frustum_angle_list = pickle.load(fp,encoding='iso-8859-1') 
 
     def __len__(self):
             return len(self.input_list)
@@ -194,8 +195,9 @@ class FrustumDataset(object):
             heading_angle = self.heading_list[index]
 
         # Size
-        size_class, size_residual = size2class(self.size_list[index],
-            self.type_list[index])
+        print(type(self))
+        size_class, size_residual = size2class(list(self.size_list)[index],
+            list(self.type_list)[index])
 
         # Data Augmentation
         if self.random_flip:

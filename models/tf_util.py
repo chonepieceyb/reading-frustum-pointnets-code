@@ -15,7 +15,6 @@ def _variable_on_cpu(name, shape, initializer, use_fp16=False):
     initializer: initializer for Variable
   Returns:
     Variable Tensor
-    张量
   """
   with tf.device("/cpu:0"):
     dtype = tf.float16 if use_fp16 else tf.float32
@@ -39,6 +38,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd, use_xavier=True):
   Returns:
     Variable Tensor
   """
+  # 初始化各种参数的
   if use_xavier:
     initializer = tf.contrib.layers.xavier_initializer()
   else:
@@ -154,7 +154,9 @@ def conv2d(inputs,
     Variable tensor
   """
   with tf.variable_scope(scope) as sc:
+      # 保证其内部namespace不冲突
       kernel_h, kernel_w = kernel_size
+      # kernel_h=1，kernel_w=3，即卷积核大小为1*3
       assert(data_format=='NHWC' or data_format=='NCHW')
       if data_format == 'NHWC':
         num_in_channels = inputs.get_shape()[-1].value
@@ -167,7 +169,9 @@ def conv2d(inputs,
                                            use_xavier=use_xavier,
                                            stddev=stddev,
                                            wd=weight_decay)
+      # stride_h=1，stride_w=1即卷积时逐格移动
       stride_h, stride_w = stride
+      # 对inputs B×N×3×1中的每个N×3做卷积，其中卷积核大小为1,3，不进行padding填充，并对输出结果添加biases，最后outputs为 B×N×1×64
       outputs = tf.nn.conv2d(inputs, kernel,
                              [1, stride_h, stride_w, 1],
                              padding=padding,
@@ -344,6 +348,7 @@ def fully_connected(inputs,
   Returns:
     Variable tensor of size B x num_outputs.
   """
+  # 生成全连接层，总体思路就是用variable_with_weight_decay生成w×x+b中的w，并加上偏置biases。最后通过参数提供batch_norm和activation等功能
   with tf.variable_scope(scope) as sc:
     num_input_units = inputs.get_shape()[-1].value
     weights = _variable_with_weight_decay('weights',
@@ -379,6 +384,7 @@ def max_pool2d(inputs,
   Returns:
     Variable tensor
   """
+  # tensorflow自带max_pool层，添加了scope用于设置其命名空间
   with tf.variable_scope(scope) as sc:
     kernel_h, kernel_w = kernel_size
     stride_h, stride_w = stride
