@@ -15,7 +15,7 @@ NUM_SIZE_CLUSTER = 8 # one cluster for each type 每种类型一个集群
 NUM_OBJECT_POINT = 512
 g_type2class={'Car':0, 'Van':1, 'Truck':2, 'Pedestrian':3,
               'Person_sitting':4, 'Cyclist':5, 'Tram':6, 'Misc':7}
-g_class2type = {g_type2class[t]:t for t in g_type2class}#与上面相反
+g_class2type = {g_type2class[t]:t for t in g_type2class}#与上面相反，数字对应字符串
 g_type2onehotclass = {'Car': 0, 'Pedestrian': 1, 'Cyclist': 2}
 #np.array,存储单一数据类型的多维数组,避免浪费内存和CPU。
 g_type_mean_size = {'Car': np.array([3.88311640418,1.62856739989,1.52563191462]),

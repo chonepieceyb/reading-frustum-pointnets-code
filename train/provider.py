@@ -25,10 +25,10 @@ except NameError:
     raw_input = input  # Python 3
 
 
-def rotate_pc_along_y(pc, rot_angle):
+def rotate_pc_along_y(pc, rot_angle):              #将点集绕着 y轴旋转
     '''
     Input:
-        pc: numpy array (N,C), first 3 channels are XYZ
+        pc: numpy array (N,C), first 3 channels are XYZ          这个坐标系和参考相机坐标系差不多
             z is facing forward, x is left ward, y is downward
         rot_angle: rad scalar
     Output:
@@ -41,18 +41,18 @@ def rotate_pc_along_y(pc, rot_angle):
     return pc
 
 def angle2class(angle, num_class):
-    ''' Convert continuous angle to discrete class and residual.
+    ''' Convert continuous angle to discrete class and residual.    把连续的角度转化成离散的分类？
 
     Input:
-        angle: rad scalar, from 0-2pi (or -pi~pi), class center at
+        angle: rad scalar, from 0-2pi (or -pi~pi), class center at       把 2pi等分成N份，根据输入进行归类
             0, 1*(2pi/N), 2*(2pi/N) ...  (N-1)*(2pi/N)
         num_class: int scalar, number of classes N
     Output:
-        class_id, int, among 0,1,...,N-1
+        class_id, int, among 0,1,...,N-1                           剩余角，扣除分类后的角度，与余数的概念类似  -Y
         residual_angle: float, a number such that
             class*(2pi/N) + residual_angle = angle
     '''
-    angle = angle%(2*np.pi)
+    angle = angle%(2*np.pi)     #限制到 2pi范围内
     assert(angle>=0 and angle<=2*np.pi)
     angle_per_class = 2*np.pi/float(num_class)
     shifted_angle = (angle+angle_per_class/2)%(2*np.pi)
@@ -61,7 +61,7 @@ def angle2class(angle, num_class):
         (class_id * angle_per_class + angle_per_class/2)
     return class_id, residual_angle
 
-def class2angle(pred_cls, residual, num_class, to_label_format=True):
+def class2angle(pred_cls, residual, num_class, to_label_format=True):    #根据分类把角度的class 转化成角度，上面那个函数的反函数
     ''' Inverse function to angle2class.
     If to_label_format, adjust angle to the range as in labels.
     '''
@@ -72,8 +72,8 @@ def class2angle(pred_cls, residual, num_class, to_label_format=True):
         angle = angle - 2*np.pi
     return angle
         
-def size2class(size, type_name):
-    ''' Convert 3D bounding box size to template class and residuals.
+def size2class(size, type_name):                
+    ''' Convert 3D bounding box size to template class and residuals.   #将3D框框的大小转化成模板类和残差
     todo (rqi): support multiple size clusters per type.
  
     Input:
@@ -84,8 +84,8 @@ def size2class(size, type_name):
         size_residual: numpy array of shape (3,)
     '''
     size_class = g_type2class[type_name]      #由于python2和python3的字典取key的差异，会报错，
-    size_residual = size - g_type_mean_size[type_name]
-    return size_class, size_residual
+    size_residual = size - g_type_mean_size[type_name]   #根据model_util 每一个类别对应一个class(用int 表示)size class 和 type class的序号应该是对应的，
+    return size_class, size_residual                      #并且在model中给出了每一个类别3D框框的平均大小，这个和之前看的有一篇论文的思路类似 -Y
 
 def class2size(pred_cls, residual):
     ''' Inverse function to size2class. '''
@@ -105,16 +105,16 @@ class FrustumDataset(object):
         Input:
             npoints: int scalar, number of points for frustum point cloud.
             split: string, train or val
-            random_flip: bool, in 50% randomly flip the point cloud
+            random_flip: bool, in 50% randomly flip the point cloud        这个参数的含义是否随机翻动点云数据
                 in left and right (after the frustum rotation if any)
             random_shift: bool, if True randomly shift the point cloud
                 back and forth by a random distance
-            rotate_to_center: bool, whether to do frustum rotation
-            overwritten_data_path: string, specify pickled file path.
+            rotate_to_center: bool, whether to do frustum rotation         是否旋转视锥
+            overwritten_data_path: string, specify pickled file path.        .pikle文件所在的地址
                 if None, use default path (with the split)
-            from_rgb_detection: bool, if True we assume we do not have
+            from_rgb_detection: bool, if True we assume we do not have      这个含义应该是只有 2D检测的结果(测试的时候应该是只提供2D检测结果，因为按照我的理解，这个网络是基于2D图像检测），并没有3D框框的groundtrue（类似于KITTI数据集里的label文件）只返回元素 -Y
                 groundtruth, just return data elements.
-            one_hot: bool, if True, return one hot vector
+            one_hot: bool, if True, return one hot vector        这个one hot vector是啥？ 
         '''
         self.npoints = npoints
         self.random_flip = random_flip
@@ -126,7 +126,7 @@ class FrustumDataset(object):
                 'kitti/frustum_carpedcyc_%s.pickle'%(split))
 
         self.from_rgb_detection = from_rgb_detection
-        if from_rgb_detection:
+        if from_rgb_detection:    #从预处理得到的.pilke中提取，具体的预处理代码 在 kitti/prepare_data.py line469左右 -Y
             with open(overwritten_data_path,'rb') as fp:
                 self.id_list = pickle.load(fp,encoding='iso-8859-1')
                 self.box2d_list = pickle.load(fp,encoding='iso-8859-1')
@@ -135,7 +135,7 @@ class FrustumDataset(object):
                 # frustum_angle is clockwise angle from positive x-axis
                 self.frustum_angle_list = pickle.load(fp,encoding='iso-8859-1') 
                 self.prob_list = pickle.load(fp,encoding='iso-8859-1')
-        else:
+        else:                        #从预处理得到的.pilke中提取，具体的预处理代码 在 kitti/prepare_data.py line300左右 -Y
             with open(overwritten_data_path,'rb') as fp:
                 self.id_list = pickle.load(fp,encoding='iso-8859-1')      #python3和python2的差异必须加上encoding='bytes'
                 self.box2d_list = pickle.load(fp,encoding='iso-8859-1')

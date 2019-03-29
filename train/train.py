@@ -12,11 +12,12 @@ import importlib
 import numpy as np
 import tensorflow as tf
 from datetime import datetime
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(BASE_DIR)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  #train文件夹的路径
+ROOT_DIR = os.path.dirname(BASE_DIR)     #项目的根目录
 sys.path.append(BASE_DIR)
 
-sys.path.append(os.path.join(ROOT_DIR, 'models'))
+#用到了 model provider 和 train_util
+sys.path.append(os.path.join(ROOT_DIR, 'models'))   
 import provider
 from train_util import get_batch
 
@@ -52,13 +53,15 @@ GPU_INDEX = FLAGS.gpu
 MOMENTUM = FLAGS.momentum
 OPTIMIZER = FLAGS.optimizer
 DECAY_STEP = FLAGS.decay_step
+#   初始时使用较大的学习率较快地得到较优解，随着迭代学习率呈指数逐渐减小。  
+#  decayed_learning_rate = learning_rate*(decay_rate^(global_steps/decay_steps)
 DECAY_RATE = FLAGS.decay_rate
 NUM_CHANNEL = 3 if FLAGS.no_intensity else 4 # point feature channel
 NUM_CLASSES = 2 # segmentation has two classes
 
 MODEL = importlib.import_module(FLAGS.model) # import network module
-MODEL_FILE = os.path.join(ROOT_DIR, 'models', FLAGS.model+'.py')
-LOG_DIR = FLAGS.log_dir
+MODEL_FILE = os.path.join(ROOT_DIR, 'models', FLAGS.model+'.py')  #模型的路径
+LOG_DIR = FLAGS.log_dir                      #训练结果log的路径
 if not os.path.exists(LOG_DIR): os.mkdir(LOG_DIR)
 os.system('cp %s %s' % (MODEL_FILE, LOG_DIR)) # bkp of model def
 os.system('cp %s %s' % (os.path.join(BASE_DIR, 'train.py'), LOG_DIR))
