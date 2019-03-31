@@ -145,7 +145,7 @@ class FrustumDataset(object):
                 self.type_list = pickle.load(fp,encoding='iso-8859-1')
                 self.heading_list = pickle.load(fp,encoding='iso-8859-1')
                 self.size_list = pickle.load(fp,encoding='iso-8859-1')
-                # frustum_angle is clockwise angle from positive x-axis
+                # frustum_angle is clockwise angle from positive x-axis   视锥的角度是绕着x轴的正方向顺时针来定义的
                 self.frustum_angle_list = pickle.load(fp,encoding='iso-8859-1') 
 
     def __len__(self):
@@ -154,7 +154,7 @@ class FrustumDataset(object):
     def __getitem__(self, index):
         ''' Get index-th element from the picked file dataset. '''
         # ------------------------------ INPUTS ----------------------------
-        rot_angle = self.get_center_view_rot_angle(index)
+        rot_angle = self.get_center_view_rot_angle(index) #这个rot_angle在原来的角度上增加了 0.5pi
 
         # Compute one hot vector
         if self.one_hot:
@@ -164,13 +164,31 @@ class FrustumDataset(object):
             one_hot_vec[g_type2onehotclass[cls_type]] = 1
 
         # Get point cloud
-        if self.rotate_to_center:
+        if self.rotate_to_center:   #如果旋转到中心的话，把视锥点集旋转到中心
             point_set = self.get_center_view_point_set(index)
         else:
             point_set = self.input_list[index]
         # Resample
-        choice = np.random.choice(point_set.shape[0], self.npoints, replace=True)
-        point_set = point_set[choice, :]
+        # np.random.choice的用法   https://blog.csdn.net/wyx100/article/details/80639653
+        '''
+            import numpy as np
+
+            # 参数意思分别 是从a 中以概率P，随机选择3个, p没有指定的时候相当于是一致的分布
+            a1 = np.random.choice(a=5, size=3, replace=False, p=None)
+            print(a1)
+            # 非一致的分布，会以多少的概率提出来
+            a2 = np.random.choice(a=5, size=3, replace=False, p=[0.2, 0.1, 0.3, 0.4, 0.0])
+            print(a2)
+            # replacement 代表的意思是抽样之后还放不放回去，如果是False的话，那么出来的三个数都不一样，如果是
+            True的话， 有可能会出现重复的，因为前面的抽的放回去了。
+            --------------------- 
+            作者：qfpkzheng 
+            来源：CSDN 
+            原文：https://blog.csdn.net/qfpkzheng/article/details/79061601 
+            版权声明：本文为博主原创文章，转载请附上博文链接！
+        '''
+        choice = np.random.choice(point_set.shape[0], self.npoints, replace=True)   #这里应该是在在point_set中按照一致分布放回地选出 npoints个点出来
+        point_set = point_set[choice, :]   #
 
         if self.from_rgb_detection:
             if self.one_hot:
@@ -179,9 +197,9 @@ class FrustumDataset(object):
                 return point_set, rot_angle, self.prob_list[index]
         
         # ------------------------------ LABELS ----------------------------
-        seg = self.label_list[index] 
-        seg = seg[choice]
-
+        seg = self.label_list[index]   #如果数据是from_rgb_dection的话，那label文件是没有的，所以到前面的if就return,现在是针对train的操作，对label的说明，根据prepare.py
+        seg = seg[choice]              #label是一个 n*1向量，（n的个数就是之前经过2d_box提取出的，在rect坐标系下能够投影到 2d_box点的数目），在这n个值中，在由3D框框内8个点构成的三角剖分网中的点标记为1其余标记为0 -Y
+                                       #这里从label从选取由上一部choice得到的点
         # Get center point of 3D box
         if self.rotate_to_center:
             box3d_center = self.get_center_view_box3d_center(index)
@@ -196,24 +214,25 @@ class FrustumDataset(object):
 
         # Size
         print(type(self))
-        size_class, size_residual = size2class(list(self.size_list)[index],
+        size_class, size_residual = size2class(list(self.size_list)[index], #size_class的数据是一个 int ,而 size_residual是 size - mean_size剩下的两，mean_size在 model_util中有定义 -Y
             list(self.type_list)[index])
 
-        # Data Augmentation
-        if self.random_flip:
+        # Data Augmentation  数据增广？
+        if self.random_flip:    #做左右翻转，如果反转了，那么旋转角度的数据就会不正确
             # note: rot_angle won't be correct if we have random_flip
             # so do not use it in case of random flipping.
             if np.random.random()>0.5: # 50% chance flipping
-                point_set[:,0] *= -1
+                point_set[:,0] *= -1  #根据文件输入的说明，点应该都是在 参考相机（rect坐标系下的）（应该！） 也就是 z轴 向前，y轴向下，x轴向右，这里有百分之50的概率做左右翻转
                 box3d_center[0] *= -1
-                heading_angle = np.pi - heading_angle
-        if self.random_shift:
+                heading_angle = np.pi - heading_angle #注：这个heading_angle的含义有点不明确，根据prepare.data应该是kitti label文件里的rotation_y
+        if self.random_shift:  #对点集做先后扰动
             dist = np.sqrt(np.sum(box3d_center[0]**2+box3d_center[1]**2))
+            #这里先计算了扰动的shift
             shift = np.clip(np.random.randn()*dist*0.05, dist*0.8, dist*1.2)
             point_set[:,2] += shift
             box3d_center[2] += shift
 
-        angle_class, angle_residual = angle2class(heading_angle,
+        angle_class, angle_residual = angle2class(heading_angle,    #angle_class的类型是一个int, angle_residual也是angel扣掉 mean_angle后的值
             NUM_HEADING_BIN)
 
         if self.one_hot:
@@ -226,7 +245,7 @@ class FrustumDataset(object):
     def get_center_view_rot_angle(self, index):
         ''' Get the frustum rotation angle, it isshifted by pi/2 so that it
         can be directly used to adjust GT heading angle '''
-        return np.pi/2.0 + self.frustum_angle_list[index]
+        return np.pi/2.0 + self.frustum_angle_list[index]    #为什么要多加一个 0.5pi? 目前我的猜测是方便计算  -Y
 
     def get_box3d_center(self, index):
         ''' Get the center (XYZ) of 3D bounding box. '''
@@ -234,27 +253,39 @@ class FrustumDataset(object):
             self.box3d_list[index][6,:])/2.0
         return box3d_center
 
-    def get_center_view_box3d_center(self, index):
+#  作者在kitti_util中给出了3D框框的点的定义
+'''
+            1 -------- 0
+           /|         /|
+          2 -------- 3 .
+          | |        | |
+          . 5 -------- 4
+          |/         |/
+          6 -------- 7
+'''
+    def get_center_view_box3d_center(self, index):   #旋转中心
         ''' Frustum rotation of 3D bounding box center. '''
         box3d_center = (self.box3d_list[index][0,:] + \
             self.box3d_list[index][6,:])/2.0
-        return rotate_pc_along_y(np.expand_dims(box3d_center,0), \
-            self.get_center_view_rot_angle(index)).squeeze()
+        return rotate_pc_along_y(np.expand_dims(box3d_center,0), \    
+            self.get_center_view_rot_angle(index)).squeeze()  #而 numpy.array.expand_dims的作用是扩展维度比如 原本是 x=[1,2] np.expand_dims(x,0)之后 结果变成了 [[1,2]].这里应该是先扩充成二维的矩阵，方便用旋转矩阵进行旋转操作
+                                                              # numpy.array.squeze()函数，删除数组中的单维度的条目（应该可以理解成降维，eg reshape([1,1,10])中的两个1 
+                                                              #参考解释 https://blog.csdn.net/tracy_leaf/article/details/79297121
         
-    def get_center_view_box3d(self, index):
+    def get_center_view_box3d(self, index):   #旋转8个cornor
         ''' Frustum rotation of 3D bounding box corners. '''
         box3d = self.box3d_list[index]
         box3d_center_view = np.copy(box3d)
         return rotate_pc_along_y(box3d_center_view, \
             self.get_center_view_rot_angle(index))
 
-    def get_center_view_point_set(self, index):
+    def get_center_view_point_set(self, index):     #旋转整个点的集合
         ''' Frustum rotation of point clouds.
         NxC points with first 3 channels as XYZ
         z is facing forward, x is left ward, y is downward
         '''
         # Use np.copy to avoid corrupting original data
-        point_set = np.copy(self.input_list[index])
+        point_set = np.copy(self.input_list[index])   #这里应该是复制点集
         return rotate_pc_along_y(point_set, \
             self.get_center_view_rot_angle(index))
 
