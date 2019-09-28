@@ -3,24 +3,24 @@
 Author: Charles R. Qi
 Date: September 2017
 '''
-from __future__ import print_function
+from __future__ import print_function #统一python2.x中的print函数与python3.x中一样 加括号 -H
 
 import os
 import sys
 import numpy as np
 import cv2
-from PIL import Image
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from PIL import Image #Python Imaging Library -H
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  #获取kitti_object.py的绝对地址 -H
 ROOT_DIR = os.path.dirname(BASE_DIR)
-sys.path.append(os.path.join(ROOT_DIR, 'mayavi'))
-import kitti_util as utils
+sys.path.append(os.path.join(ROOT_DIR, 'mayavi')) 
+import kitti_util as utils #加载论文作者的库 
 
 try:
     raw_input          # Python 2
 except NameError:
     raw_input = input  # Python 3
 
-
+#用于获取数据库各项路径路径training/testing
 class kitti_object(object):
     '''Load and parse object data into a usable format.'''
     #将对象数据加载并解析为一种可用的格式 -H
@@ -43,17 +43,17 @@ class kitti_object(object):
         self.calib_dir = os.path.join(self.split_dir, 'calib')      #标定-H
         self.lidar_dir = os.path.join(self.split_dir, 'velodyne')   #点云—H
         self.label_dir = os.path.join(self.split_dir, 'label_2')
-
+    # 用于后面获取样本库内的样本总数
     def __len__(self):
         return self.num_samples
 
     def get_image(self, idx): #加载图片-H
-        assert(idx<self.num_samples) //断言，若不满足条件就报错-H
+        assert(idx<self.num_samples) #断言，若不满足条件就报错-H
         img_filename = os.path.join(self.image_dir, '%06d.png'%(idx))
         return utils.load_image(img_filename)
 
     def get_lidar(self, idx): #处理图片-H
-        assert(idx<self.num_samples) //断言，若不满足条件就报错-H
+        assert(idx<self.num_samples) #断言，若不满足条件就报错-H
         lidar_filename = os.path.join(self.lidar_dir, '%06d.bin'%(idx))
         return utils.load_velo_scan(lidar_filename)
 
@@ -68,7 +68,7 @@ class kitti_object(object):
         return utils.read_label(label_filename)
         
     def get_depth_map(self, idx):#获取深度图-H
-        pass//不进行操作，有点像continue —H
+        pass#不进行操作，有点像continue —H
 
     def get_top_down(self, idx):
         pass
